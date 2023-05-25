@@ -29,7 +29,7 @@ a.wb_eaterw_broken = a.MechUnit:new{Image = "units/player/th_forestfirer_w_broke
 a.wb_eater_ns =      a.MechIcon:new{Image = "units/player/th_forestfirer_ns.png" }
 
 
-WorldBuilders_Eater = Pawn:new{	
+WorldBuilders_EaterMech = Pawn:new{	
 	Name = "Eater",
 	Class = "Brute",
 	Health = 2,

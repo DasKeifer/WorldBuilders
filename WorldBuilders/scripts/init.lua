@@ -6,7 +6,7 @@ local mod = {
 	modApiVersion = "2.9.2",
 	gameVersion = "1.2.88",
 	dependencies = {
-        modApiExt = "1.17",
+        modApiExt = "1.21",
     }
 }
 
@@ -28,7 +28,7 @@ function mod:init()
 
 	-- Weapons
 	require(self.scriptPath .. "weapons/wb_mold")
-	require(self.scriptPath .. "weapons/wb_consumer")
+	require(self.scriptPath .. "weapons/wb_consume")
 	require(self.scriptPath .. "weapons/wb_shift")
 	
 	-- Shop... TBD

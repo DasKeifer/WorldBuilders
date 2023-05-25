@@ -54,8 +54,8 @@ WorldBuilders_Mold_AB = WorldBuilders_Mold_B:new
 function WorldBuilders_Mold:GetSkillEffect(p1, p2)
 	local ret = SkillEffect()
 	
-	ret:AddDamage(4)
-	ret:AddBounce(p2, 4)
+	local dir = GetDirection(p2 - p1)
+	ret:AddDamage(SpaceDamage(p2, self.Damage, dir%4))
 	
 	return ret
 end

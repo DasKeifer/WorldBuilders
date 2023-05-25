@@ -4,7 +4,7 @@ local mechPath = resourcePath .. "img/mechs/"
 local scriptPath = mod_loader.mods[modApi.currentMod].scriptPath
 local mod = modApi:getCurrentMod()
 
-local squadColors = modApi:getPaletteImageOffset(worldbuilders_color)
+local squadColors = modApi:getPaletteImageOffset("worldbuilders_color")
 
 local files = {
 	"th_arbiformer.png",

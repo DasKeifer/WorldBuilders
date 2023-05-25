@@ -12,8 +12,7 @@ WorldBuilders_Shift = Skill:new{
 	Upgrades = 2,
 	UpgradeCost = { 2, 2 },
 	
-	--custom
-	Range = 1,
+	Range = 3,
 	--two phase
 	
 	--TipImage
@@ -31,38 +30,53 @@ Weapon_Texts.WorldBuilders_Shift_Upgrade1 = "+2 Range"
 WorldBuilders_Shift_A = WorldBuilders_Shift:new
 {
 	UpgradeDescription = "Adds 2 range",
-	DamageOuter = 1,
+	Range = 3,
 }
 
 Weapon_Texts.WorldBuilders_Shift_Upgrade2 = "Project"
 WorldBuilders_Shift_B = WorldBuilders_Shift:new
 {
 	UpgradeDescription = "Swap with any two tiles in range",
+	-- TODO
 }
 
 WorldBuilders_Shift_AB = WorldBuilders_Shift_B:new
 {
-	DamageOuter = 1,
+	Range = 3,
 }
 
--- First action is to move to any space in the forest
 function WorldBuilders_Shift:GetTargetArea(point)
-	local ret = PointList()
-	
-	-- if we aren't on a forest then return the point we are attack
-	-- this is needed with how getGroupingOfSpaces works since it consideres the
-	-- point to be of the right type or as part of the boarder
-	if forestUtils.isAForest(point) then
-		ret:push_back(point)
-	else
-		local forestGroup = forestUtils:getGroupingOfSpaces(point, forestUtils.isAForest)
-		for k, v in pairs(forestGroup.group) do
-			ret:push_back(Point(v))
-		end
-	end 
-	return ret
+	return general_DiamondTarget(point, self.Range)
 end
 
 function WorldBuilders_Shift:GetSkillEffect(p1, p2)
-	return Move:GetSkillEffect(p1, p2)
+	local ret = SkillEffect()	
+	
+	
+
+	--local p1Tile = Board:getTileTable(p1)
+	--local p2Tile = Board:getTileTable(p2)
+	
+	
+	
+	local region = modapiext.board:getCurrentRegion()
+	if not region then return nil end
+
+	local p1Tile = nil
+	local p1Tile = nil
+	for i, entry in ipairs(region.player.map_data.map) do
+		if entry.loc == p1 then
+			p1Tile = entry
+		elseif entry.loc == p2 then
+			p2Tile = entry
+		end
+	end
+	
+	local tmp = p1Tile
+	p1Tile = p2Tile
+	p2Tile = tmp
+	
+	ret:AddDamage(SpaceDamage(p2,1,direction))
+	
+	return ret
 end
