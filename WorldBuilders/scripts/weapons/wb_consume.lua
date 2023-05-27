@@ -78,15 +78,21 @@ function WorldBuilders_Consume:Consume_Spawn(skillEffect, consumeSpace)
 	skillEffect:AddDamage(spawnDamage)
 end
 
+function WorldBuilders_Consume:AddConsumeDamage(skillEffect, consumeSpace, damage)
+	local consumeDamage = SpaceDamage(consumeSpace, damage)
+	consumeDamage.iTerrain = TERRAIN_HOLE
+	skillEffect:AddBounce(consumeSpace, -5)
+	skillEffect:AddDelay(0.1)
+	skillEffect:AddDamage(consumeDamage)
+end
+
 function WorldBuilders_Consume:Consume_Building(skillEffect, p1, p2, consumeSpace, dir)
+	self:AddConsumeDamage(skillEffect, consumeSpace, DAMAGE_DEATH)
+	
 	local chainDamage = 2 * Board:GetHealth(consumeSpace)
 	
-	local consumeDamage = SpaceDamage(consumeSpace, DAMAGE_DEATH)
-	consumeDamage.iTerrain = TERRAIN_HOLE
-	skillEffect:AddDamage(consumeDamage)
-	
 	-- lightning from building to mech
-	skillEffect:AddAnimation(consumeSpace,"Lightning_Hit")
+	--skillEffect:AddAnimation(consumeSpace,"Lightning_Hit")
 	
 	local spaceInfront = p1 + DIR_VECTORS[dir]
 
@@ -102,7 +108,6 @@ function WorldBuilders_Consume:Consume_Building(skillEffect, p1, p2, consumeSpac
 		LOG("space"..spaceInfront:GetString())
 		explored[hash(spaceInfront)] = true
 		skillEffect:AddAnimation(spaceInfront, "Lightning_Attack_" .. dir)
-		skillEffect:AddAnimation(spaceInfront, "Lightning_Hit")
 		
 		spaceInfront = Point(spaceInfront + DIR_VECTORS[dir])
 	end
@@ -110,6 +115,9 @@ function WorldBuilders_Consume:Consume_Building(skillEffect, p1, p2, consumeSpac
 	local damage = SpaceDamage(spaceInfront, chainDamage)
 	local origin = { [hash(spaceInfront)] = p1 }
 	local todo = {spaceInfront}
+	
+	skillEffect:AddAnimation(p2,"Lightning_Hit")
+	skillEffect:AddAnimation(p2, "Lightning_Attack_" .. dir)
 	
 	LOG("SEARCHING")
 	while #todo ~= 0 do
@@ -145,9 +153,7 @@ end
 function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, target, consumeSpace, dir)
 	local consumedTerrain = Board:GetTerrain(consumeSpace)
 	if consumedTerrain ~= TERRAIN_HOLE then
-		local consumeDamage = SpaceDamage(consumeSpace, 0)
-		consumeDamage.iTerrain = TERRAIN_HOLE
-		skillEffect:AddDamage(consumeDamage)
+		self:AddConsumeDamage(skillEffect, consumeSpace, 0)
 	end
 	
 	-- hole is the default effect
@@ -218,8 +224,8 @@ function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, ta
 	
 	-- in between spaces
 	if applyFire or applyAcid or applySmoke then
-		local spaceInfront = p1 + DIR_VECTORS[dir]
-		while spaceInfront ~= p2 do
+		local spaceInfront = consumeSpace + DIR_VECTORS[dir] * 2
+		while spaceInfront ~= target do
 			local effectDamage = SpaceDamage(spaceInfront, 0)
 			if applyFire then
 				effectDamage.iFire = EFFECT_CREATE
