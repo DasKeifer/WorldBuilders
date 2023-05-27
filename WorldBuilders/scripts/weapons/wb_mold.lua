@@ -12,11 +12,11 @@ WorldBuilders_Mold = Skill:new
 	Range = 1,
 	PathSize = 1,
 	Projectile = false,
-    Damage = 2,
+    Damage = 1,
     SplashDamage = 1,
     PowerCost = 0,
     Upgrades = 2,
-    UpgradeCost = { 1, 2 },
+    UpgradeCost = { 2, 2 },
 	
 	TwoClick = true,
 	
@@ -40,6 +40,7 @@ WorldBuilders_Mold_A = WorldBuilders_Mold:new
 {
 	UpgradeDescription = "Erect mountains instead of rocks",
 	MakeMountains = true,
+	Damage = 2,
 }
 
 Weapon_Texts.WorldBuilders_Mold_Upgrade2 = "Eruption"
@@ -52,28 +53,8 @@ WorldBuilders_Mold_B = WorldBuilders_Mold:new
 WorldBuilders_Mold_AB = WorldBuilders_Mold_B:new
 {
 	MakeMountains = true,
+	Damage = 2,
 }
-
---[[function WorldBuilders_Consume:GetTargetArea(point)
-		local pushSpace = point + DIR_VECTORS[(dir + 2) % 4]
-		if Board:IsValid(spaceBehind) then
-			for i = 1, self.Range do
-				local curr = Point(point + DIR_VECTORS[dir] * i)
-				if not Board:IsValid(curr) then
-					break
-				end
-				
-				ret:push_back(curr)
-				
-				if Board:IsBlocked(curr,PATH_PHASING) then
-					break
-				end
-			end
-		end
-	end
-	
-	return ret
-end]]--
 
 function WorldBuilders_Mold:GetSecondTargetArea(p1,p2)
 	local ret = PointList()
@@ -108,9 +89,9 @@ function WorldBuilders_Mold:GetFinalEffect(p1,p2,p3)
 	end
 	
 	if self.Erupt then
-		damage.iFire = true
+		damage.iFire = EFFECT_CREATE
 		for dir = DIR_START, DIR_END do
-			local splashSpace = point + DIR_VECTORS[dir]
+			local splashSpace = p2 + DIR_VECTORS[dir]
 			if splashSpace ~= p1 then
 				ret:AddDamage(SpaceDamage(splashSpace, self.SplashDamage))
 			end

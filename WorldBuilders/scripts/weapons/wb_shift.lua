@@ -70,10 +70,100 @@ function WorldBuilders_Shift:GetTargetArea(center)
 	return ret
 end
 
+-- only used for B & AB weapons
+function WorldBuilders_Shift_B:GetSecondTargetArea(p1,p2)
+	return general_DiamondTarget(p1, self.Range)
+end
+
+function WorldBuilders_Shift:GetSkillEffect(p1, p2)
+	LOG("BUILDING BASE and A")
+	local ret = SkillEffect()
+	local dir = GetDirection(p2 - p1)
+	
+	local p1Data = self:GetSpaceData(p1)
+	local p2Data = self:GetSpaceData(p2)
+
+	local success = true
+	local p1Damage = SpaceDamage(p1, 0)
+	local p1BuildingPush = SpaceDamage(p1, 0)
+	self:ApplySpaceDataAsSpaceDamage(p1Damage, p2Data)
+	-- p1 is by necessity occupied
+	if not self:TerrainCanBeOccupied(Board:GetTerrain(p2)) then
+		success = self:AddPushToOpenSpace(p1Damage, p1BuildingPush, p1, p2, dir)
+	end
+	
+	
+	if success then
+		local p2Damage = SpaceDamage(p2, 0)
+		local p1BuildingPush = SpaceDamage(p2, 0)
+		self:ApplySpaceDataAsSpaceDamage(p2Damage, p1BuildingPush, p1Data)
+		
+		-- todo add space symbol and/or animation
+		ret:AddDamage(p1BuildingPush)
+		ret:AddDamage(p1Damage)
+		ret:AddBounce(p1, -5)
+		-- by necessity won't push
+		ret:AddDamage(p2Damage)
+		ret:AddBounce(p2, -5)
+	end
+	
+	return ret
+end
+
+-- B & AB do different things - overwrite the skill effect
+function WorldBuilders_Shift_B:GetSkillEffect(p1, p2)
+	LOG("BUILDING B and AB")
+	local ret = SkillEffect()
+	ret:AddTeleport(p2, p2, FULL_DELAY)
+	return ret
+end
+
+function WorldBuilders_Shift_B:GetFinalEffect(p1,p2,p3)
+	LOG("BUILDING B and AB 2")
+	local ret = SkillEffect()
+	local dir = GetDirection(p3 - p2)
+	
+	local p2Data = self:GetSpaceData(p2)
+	local p3Data = self:GetSpaceData(p3)
+
+	local success = true
+	local p2Damage = SpaceDamage(p2, 0)
+	local p2BuildingPush = SpaceDamage(p2, 0)
+	self:ApplySpaceDataAsSpaceDamage(p2Damage, p3Data)
+	if Board:IsPawnSpace(p2) and not self:TerrainCanBeOccupied(Board:GetTerrain(p3)) then
+		success = self:AddPushToOpenSpace(p2Damage, p2BuildingPush, p2, p3, dir)
+	end
+	
+	local p3Damage = SpaceDamage(p3, 0)
+	local p3BuildingPush = SpaceDamage(p3, 0)
+	if success then
+		self:ApplySpaceDataAsSpaceDamage(p3Damage, p2Data)
+		if Board:IsPawnSpace(p3) and not self:TerrainCanBeOccupied(Board:GetTerrain(p2)) then
+			LOG("PUSHING")
+			success = self:AddPushToOpenSpace(p3Damage, p3BuildingPush, p3, p2, dir)
+		end
+	end
+	
+	if success then
+		-- todo add space symbol and/or animation
+		ret:AddDamage(p2BuildingPush)
+		ret:AddDamage(p2Damage)
+		ret:AddBounce(p2, -5)
+		
+		ret:AddDamage(p3BuildingPush)
+		ret:AddDamage(p3Damage)
+		ret:AddBounce(p3, -5)
+	end
+	
+	return ret
+end
+
 function WorldBuilders_Shift:GetSpaceData(space)
 	local data = {
 		terrain = Board:GetTerrain(space),
+		customTile = Board:GetCustomTile(space),
 		populated = Board:IsPowered(space),
+		specialBuilding = Board:GetUniqueBuilding(space),
 		currHealth = Board:GetHealth(space),
 		maxHealth = Board:GetMaxHealth(space),
 		fire = Board:IsFire(space),
@@ -89,16 +179,18 @@ function WorldBuilders_Shift:ApplySpaceDataAsSpaceDamage(spaceDamage, spaceData)
 	if spaceData.smoke then spaceDamage.iSmoke = EFFECT_CREATE end
 	
 	-- Buildings will literally crash if we set to iTerrain and a pawn is on
-	-- it so we have to do it via script instead
-	if spaceData.terrain == TERRAIN_BUILDING then
-		spaceDamage.sScript = [[Board:SetTerrain(]] .. spaceDamage.loc:GetString() .. [[, TERRAIN_BUILDING)]]
-	else
-		spaceDamage.iTerrain = spaceData.terrain
-	end	
-	
-	-- Set Health - currentHealth, maxHealth
-	spaceDamage.sScript = spaceDamage.sScript .. [[
-		Board:SetHealth(]] .. spaceDamage.loc:GetString() .. [[,]] .. spaceData.currHealth .. [[,]] .. spaceData.maxHealth .. [[)]]
+	-- it so we have to do it via script instead.	
+	-- We also have oddities with setting terrain so we just do it via post script.
+	-- for whatever reason this works better
+	spaceDamage.sScript = spaceDamage.sScript .. [[spaceDamage.sScript = Board:SetTerrain(]] .. spaceDamage.loc:GetString() .. [[, ]] .. spaceData.terrain .. [[)]]
+	if spaceData.customTile ~= nil and spaceData.customTile ~= "" then
+		spaceDamage.sScript = spaceDamage.sScript .. [[modApi.Board:SetCustomTile(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.customTile .. [[")]]
+	end
+	if spaceData.specialBuilding ~= "" then
+		spaceDamage.sScript = spaceDamage.sScript .. [[Board:SetUniqueBuilding(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.specialBuilding .. [[")]]
+	end
+	spaceDamage.sScript = spaceDamage.sScript .. [[Board:SetHealth(]] .. spaceDamage.loc:GetString() .. [[,]] .. spaceData.currHealth .. [[,]] .. spaceData.maxHealth .. [[)]]
+
 	if spaceData.populated then 
 		spaceDamage.sScript = spaceDamage.sScript .. [[
 			Board:SetPopulated(true]] .. [[,]] .. spaceDamage.loc:GetString() .. [[)]]
@@ -113,74 +205,26 @@ function WorldBuilders_Shift:IsOpenForPawn(space)
 	return self:TerrainCanBeOccupied(Board:GetTerrain(space)) and not Board:IsPawnSpace(space)
 end
 
---TODO Take into account our swapped tile
-function WorldBuilders_Shift:AddPushToOpenSpace(spaceDamage, target, baseDir)
+-- For some reason when swapping buildings the push doesn't
+-- go through on execution despite showing so we use a separate
+-- push to get around this that should be applied before the
+-- actual space damage
+function WorldBuilders_Shift:AddPushToOpenSpace(spaceDamage, buildingPushDamage, target, swappedWith, baseDir)
 	local found = false
 	local dirs = {(baseDir + 2) % 4, baseDir, (baseDir + 1) % 4, (baseDir - 1) % 4}
 	
 	for _, dir in pairs(dirs) do
 		local pushSpace = Point(target + DIR_VECTORS[dir])
-		if Board:IsValid(pushSpace) and self:IsOpenForPawn(pushSpace) then
-			spaceDamage.iPush = dir
+		if (Board:IsValid(pushSpace) and self:IsOpenForPawn(pushSpace)) or (pushSpace == swappedWith and self:TerrainCanBeOccupied(Board:GetTerrain(swappedWith))) then
+			if Board:GetTerrain(target) == TERRAIN_BUILDING then
+				buildingPushDamage.iPush = dir
+			else
+				spaceDamage.iPush = dir
+			end
 			found = true
 			break
 		end
 	end
 	
 	return found
-end
-
-function WorldBuilders_Shift:GetSkillEffect(p1, p2)
-	LOG("BUILDING")
-	local ret = SkillEffect()
-	local dir = GetDirection(p2 - p1)
-	
-	local p1Data = self:GetSpaceData(p1)
-	local p2Data = self:GetSpaceData(p2)
-
-	local success = true
-	local p1Damage = SpaceDamage(p1, 0)
-	local p1BuildingPush = SpaceDamage(p1, 0)
-	self:ApplySpaceDataAsSpaceDamage(p1Damage, p2Data)
-	--TODO some uneeded checks for self swap
-	if Board:IsPawnSpace(p1) and not self:TerrainCanBeOccupied(Board:GetTerrain(p2)) then
-		LOG("PUSHING")
-		-- For some reason when swapping buildings the push doesn'table.concat
-		-- go through on execution despite showing so we add another separate
-		-- push to get around this
-		if Board:GetTerrain(p2) == TERRAIN_BUILDING then
-			success = self:AddPushToOpenSpace(p1BuildingPush, p1, dir)
-		end
-		if success then
-			success = self:AddPushToOpenSpace(p1Damage, p1, dir)
-		end
-	end
-	
-	
-	local p2Damage = SpaceDamage(p2, 0)
-	if success then
-		self:ApplySpaceDataAsSpaceDamage(p2Damage, p1Data)
-		--[[ p1 by necessity can always be occupied. Need to check for the upgrade though
-		if Board:IsPawnSpace(p2) and not self:TerrainCanBeOccupied(p1Data.terrain) then
-			success = self:AddPushToOpenSpace(p2Damage, p2, dir)
-		end]]--
-	end
-	
-	if success then
-		ret:AddDamage(p1BuildingPush)
-		ret:AddDamage(p1Damage)
-		ret:AddBounce(p1, -5)
-		ret:AddDamage(p2Damage)
-		ret:AddBounce(p2, -5)
-	end
-	
-	return ret
-end
-
-function WorldBuilders_Shift_B:GetSecondTargetArea(p1,p2)
-
-end
-
-function WorldBuilders_Shift_B:GetFinalEffect(p1,p2,p3)
-
 end

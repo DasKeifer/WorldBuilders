@@ -58,7 +58,7 @@ function WorldBuilders_Consume:GetTargetArea(point)
 				
 				ret:push_back(curr)
 				
-				if Board:IsBlocked(curr,PATH_PHASING) then
+				if Board:IsBlocked(curr,PATH_PHASING) or Board:GetTerrain(curr) == TERRAIN_BUILDING then
 					break
 				end
 			end
@@ -78,30 +78,40 @@ function WorldBuilders_Consume:Consume_Spawn(skillEffect, consumeSpace)
 	skillEffect:AddDamage(spawnDamage)
 end
 
-function WorldBuilders_Consume:Consume_Building(skillEffect, p1, consumeSpace, dir)
+function WorldBuilders_Consume:Consume_Building(skillEffect, p1, p2, consumeSpace, dir)
 	local chainDamage = 2 * Board:GetHealth(consumeSpace)
 	
-	skillEffect:AddDamage(SpaceDamage(consumeSpace, DAMAGE_DEATH))
+	local consumeDamage = SpaceDamage(consumeSpace, DAMAGE_DEATH)
+	consumeDamage.iTerrain = TERRAIN_HOLE
+	skillEffect:AddDamage(consumeDamage)
 	
 	-- lightning from building to mech
 	skillEffect:AddAnimation(consumeSpace,"Lightning_Hit")
-	skillEffect:AddAnimation(p1,"Lightning_Attack_"..dir)
-	skillEffect:AddAnimation(p1,"Lightning_Hit")
 	
 	local spaceInfront = p1 + DIR_VECTORS[dir]
 
 	-- modified from vanilla lightning mech
-	local damage = SpaceDamage(spaceInfront, chainDamage)
 	local hash = function(point) return point.x + point.y*10 end
-	local explored = {[hash(p1)] = true}
-	local origin = { [hash(spaceInfront)] = p1 }
 	
-	local todo = {spaceInfront}
-	while spaceInfront ~= p2 do
-		spaceInfront = spaceInfront + DIR_VECTORS[dir]
-		todo[#todo + 1] = spaceInfront
+	local explored = {[hash(p1)] = true}
+	skillEffect:AddAnimation(p1, "Lightning_Attack_" .. dir)
+	skillEffect:AddAnimation(p1, "Lightning_Hit")
+	
+	LOG("next space")
+	while Board:IsValid(spaceInfront) and spaceInfront ~= p2 do
+		LOG("space"..spaceInfront:GetString())
+		explored[hash(spaceInfront)] = true
+		skillEffect:AddAnimation(spaceInfront, "Lightning_Attack_" .. dir)
+		skillEffect:AddAnimation(spaceInfront, "Lightning_Hit")
+		
+		spaceInfront = Point(spaceInfront + DIR_VECTORS[dir])
 	end
 	
+	local damage = SpaceDamage(spaceInfront, chainDamage)
+	local origin = { [hash(spaceInfront)] = p1 }
+	local todo = {spaceInfront}
+	
+	LOG("SEARCHING")
 	while #todo ~= 0 do
 		local current = pop_back(todo)
 		
@@ -133,9 +143,11 @@ function WorldBuilders_Consume:Consume_Building(skillEffect, p1, consumeSpace, d
 end
 
 function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, target, consumeSpace, dir)
-	local consumedTerrain = Board:GetTerrain(spaceBehind)
+	local consumedTerrain = Board:GetTerrain(consumeSpace)
 	if consumedTerrain ~= TERRAIN_HOLE then
-		skillEffect:AddDamage(SpaceDamage(consumeSpace, 0))
+		local consumeDamage = SpaceDamage(consumeSpace, 0)
+		consumeDamage.iTerrain = TERRAIN_HOLE
+		skillEffect:AddDamage(consumeDamage)
 	end
 	
 	-- hole is the default effect
@@ -206,17 +218,18 @@ function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, ta
 	
 	-- in between spaces
 	if applyFire or applyAcid or applySmoke then
+		local spaceInfront = p1 + DIR_VECTORS[dir]
 		while spaceInfront ~= p2 do
-			spaceInfront = spaceInfront + DIR_VECTORS[dir]
 			local effectDamage = SpaceDamage(spaceInfront, 0)
 			if applyFire then
-				effectDamage.iFire = true
+				effectDamage.iFire = EFFECT_CREATE
 			elseif applyAcid then
-				effectDamage.iAcid = true
+				effectDamage.iAcid = EFFECT_CREATE
 			else --applySmoke
-				effectDamage.iSmoke = true
+				effectDamage.iSmoke = EFFECT_CREATE
 			end
 			skillEffect:AddDamage(effectDamage)
+			spaceInfront = spaceInfront + DIR_VECTORS[dir]
 		end
 	end
 end
@@ -240,9 +253,9 @@ function WorldBuilders_Consume:GetSkillEffect(p1, p2)
 	elseif Board:IsSpawning(spaceBehind) then
 		self:Consume_Spawn(ret, spaceBehind)
 	elseif Board:GetTerrain(spaceBehind) == TERRAIN_BUILDING then
-		self:Consume_Building(ret, p1, spaceBehind, dir)
+		self:Consume_Building(ret, p1, p2, spaceBehind, dir)
 	else -- terrain
-		self:Consume_Terrain(ret, projectileDamage, p1, spaceBehind, dir)
+		self:Consume_Terrain(ret, projectileDamage, p2, spaceBehind, dir)
 	end
 	
 	ret:AddDamage(projectileDamage)
