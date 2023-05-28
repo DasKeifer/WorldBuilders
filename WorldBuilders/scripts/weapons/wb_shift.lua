@@ -169,22 +169,22 @@ function WorldBuilders_Shift_B:GetFinalEffect(p1,p2,p3)
 end
 
 function WorldBuilders_Shift:GetTerrainAndEffectData(space)
-	local data = {
+	return {
 		terrain = Board:GetTerrain(space),
 		customTile = Board:GetCustomTile(space),
 		populated = Board:IsPowered(space),
 		specialBuilding = Board:GetUniqueBuilding(space),
 		currHealth = Board:GetHealth(space),
 		maxHealth = Board:GetMaxHealth(space),
-		fire = Board:IsFire(space),
+		fireType = Board:GetFireType(space),
+		frozen = Board:IsFrozen(space),
 		acid = Board:IsAcid(space),
 		smoke = Board:IsSmoke(space),
 	}
-	return data
 end
 
 function WorldBuilders_Shift:ApplyEffect(spaceDamage, spaceData)
-	if spaceData.fire then spaceDamage.iFire = EFFECT_CREATE end
+	if spaceData.fireType == FIRE_TYPE_NORMAL_FIRE then spaceDamage.iFire = EFFECT_CREATE end
 	if spaceData.acid then spaceDamage.iAcid = EFFECT_CREATE end
 	if spaceData.smoke then spaceDamage.iSmoke = EFFECT_CREATE end
 end
@@ -194,22 +194,38 @@ function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceData)
 	-- it so we have to do it via script instead.	
 	-- We also have oddities with setting terrain so we just do it via post script.
 	-- for whatever reason this works better
+	local terrain = spaceData.terrain
+	if spaceData.fireType == FIRE_TYPE_FOREST_FIRE then terrain = TERRAIN_FOREST end
 	spaceDamage.sScript = [[Board:SetTerrain(]] .. spaceDamage.loc:GetString() .. [[, ]] .. spaceData.terrain .. [[)]]
 	LOG("TERRAIN "..spaceData.terrain)
+	
+	if spaceData.fireType == FIRE_TYPE_FOREST_FIRE then
+		LOG("FOREST FIRE")
+		spaceDamage.sScript = spaceDamage.sScript .. [[
+				Board:SetFire(]] .. spaceDamage.loc:GetString() .. [[,true)]]
+		
+	end
+	
 	if spaceData.customTile ~= nil and spaceData.customTile ~= "" then
 		LOG("CUSTOM TILE")
-		spaceDamage.sScript = spaceDamage.sScript .. [[modApi.Board:SetCustomTile(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.customTile .. [[")]]
+		spaceDamage.sScript = spaceDamage.sScript .. [[
+				modApi.Board:SetCustomTile(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.customTile .. [[")]]
 	end
 	if spaceData.specialBuilding ~= "" then
 		LOG("SPECIAL BULDING")
-		spaceDamage.sScript = spaceDamage.sScript .. [[Board:SetUniqueBuilding(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.specialBuilding .. [[")]]
+		spaceDamage.sScript = spaceDamage.sScript .. [[
+				Board:SetUniqueBuilding(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.specialBuilding .. [[")]]
 	end
 	LOG("Health "..spaceData.currHealth)
-	spaceDamage.sScript = spaceDamage.sScript .. [[Board:SetHealth(]] .. spaceDamage.loc:GetString() .. [[,]] .. spaceData.currHealth .. [[,]] .. spaceData.maxHealth .. [[)]]
+	spaceDamage.sScript = spaceDamage.sScript .. [[
+			Board:SetHealth(]] .. spaceDamage.loc:GetString() .. [[,]] .. spaceData.currHealth .. [[,]] .. spaceData.maxHealth .. [[)]]
+
+	spaceDamage.sScript = spaceDamage.sScript .. [[
+			Board:SetFrozen(]] .. spaceDamage.loc:GetString() .. [[, ]] .. spaceData.frozen .. [[, no_animation)]]
 
 	if spaceData.populated then 
 		spaceDamage.sScript = spaceDamage.sScript .. [[
-			Board:SetPopulated(true]] .. [[,]] .. spaceDamage.loc:GetString() .. [[)]]
+				Board:SetPopulated(true]] .. [[,]] .. spaceDamage.loc:GetString() .. [[)]]
 	end
 end
 
