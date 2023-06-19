@@ -135,34 +135,44 @@ function WorldBuilders_Shift_B:GetFinalEffect(p1,p2,p3)
 	local p2Damage = SpaceDamage(p2, 0)
 	local p2Terrain = SpaceDamage(p2, 0)
 	local p2BuildingPush = SpaceDamage(p2, 0)
-	self:ApplySpaceDataAsSpaceDamage(p2Damage, p2Terrain, p3Data)
+	self:ApplyEffect(p2Damage, p3Data)
+	self:ApplyTerrain(p2Terrain, p3Data)
 	if Board:IsPawnSpace(p2) and not self:TerrainCanBeOccupied(Board:GetTerrain(p3)) then
-		success = self:AddPushToOpenSpace(p2Damage, p2BuildingPush, p2, p3, dir)
+		local pushDir = self:AddPushToOpenSpace(p2, p3)
+		-- for some reason trying to apply a building too causes it
+		-- to not push so we add it twice
+		if Board:GetTerrain(p2) == TERRAIN_BUILDING then
+			p2Damage.iPush = pushDir
+		end
+		p2Terrain.iPush = pushDir
 	end
 	
 	local p3Damage = SpaceDamage(p3, 0)
+	local p3Terrain = SpaceDamage(p3, 0)
 	local p3BuildingPush = SpaceDamage(p3, 0)
 	if success then
-		self:ApplySpaceDataAsSpaceDamage(p3Damage, p2Data)
+		self:ApplyEffect(p3Damage, p2Data)
+		self:ApplyTerrain(p3Terrain, p2Data)
 		if Board:IsPawnSpace(p3) and not self:TerrainCanBeOccupied(Board:GetTerrain(p2)) then
-			success = self:AddPushToOpenSpace(p3Damage, p3BuildingPush, p3, p2, dir)
+			local pushDir = self:AddPushToOpenSpace(p3, p2)
+			-- for some reason trying to apply a building too causes it
+			-- to not push so we add it twice
+			if Board:GetTerrain(p3) == TERRAIN_BUILDING then
+				p2Damage.iPush = pushDir
+			end
+			p2Terrain.iPush = pushDir
 		end
 	end
 	
 	if success then
 		-- todo add space symbol and/or animation
-		ret:AddDamage(p2BuildingPush)
 		ret:AddDamage(p2Damage)
 		ret:AddBounce(p2, -5)
-		
-		ret:AddDamage(p3BuildingPush)
 		ret:AddDamage(p3Damage)
 		ret:AddBounce(p3, -5)
 		
-		ret:AddDelay(0.1)
-		
-		ret:AddDamage(p2DamageT)
-		ret:AddDamage(p3DamageT)
+		ret:AddDamage(p2Terrain)
+		ret:AddDamage(p3Terrain)
 	end
 	
 	return ret
@@ -221,7 +231,7 @@ function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceData)
 			Board:SetHealth(]] .. spaceDamage.loc:GetString() .. [[,]] .. spaceData.currHealth .. [[,]] .. spaceData.maxHealth .. [[)]]
 
 	spaceDamage.sScript = spaceDamage.sScript .. [[
-			Board:SetFrozen(]] .. spaceDamage.loc:GetString() .. [[, ]] .. spaceData.frozen .. [[, no_animation)]]
+			Board:SetFrozen(]] .. spaceDamage.loc:GetString() .. [[, ]] .. tostring(spaceData.frozen) .. [[, no_animation)]]
 
 	if spaceData.populated then 
 		spaceDamage.sScript = spaceDamage.sScript .. [[

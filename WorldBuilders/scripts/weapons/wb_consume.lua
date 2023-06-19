@@ -119,7 +119,6 @@ function WorldBuilders_Consume:Consume_Building(skillEffect, p1, p2, consumeSpac
 	skillEffect:AddAnimation(p2,"Lightning_Hit")
 	skillEffect:AddAnimation(p2, "Lightning_Attack_" .. dir)
 	
-	LOG("SEARCHING")
 	while #todo ~= 0 do
 		local current = pop_back(todo)
 		
@@ -187,6 +186,7 @@ function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, ta
 	
 	-- "land" effects - also apply fire, acid, smoke
 	else
+		LOG("check 0 ")
 		if consumedTerrain == TERRAIN_ROAD or consumedTerrain == TERRAIN_RUBBLE then
 			projectileDamage.iDamage = 1
 			
@@ -206,26 +206,27 @@ function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, ta
 		-- Fire 
 		if Board:IsFire(consumeSpace) or consumedTerrain == TERRAIN_FIRE then
 			applyFire = true
-			projectileDamage.iFire = true
+			projectileDamage.iFire = EFFECT_CREATE
 		end
 		
 		-- acid
 		if Board:IsAcid(consumeSpace) then
 			applyAcid = true
-			projectileDamage.iAcid = true
+			projectileDamage.iAcid = EFFECT_CREATE
 		end
 		
 		-- smoke
 		if Board:IsSmoke(consumeSpace) or consumedTerrain == TERRAIN_SAND then
 			applySmoke = true
-			projectileDamage.iSmoke = true
+			projectileDamage.iSmoke = EFFECT_CREATE
 		end
 	end
 	
 	-- in between spaces
 	if applyFire or applyAcid or applySmoke then
-		local spaceInfront = consumeSpace + DIR_VECTORS[dir] * 2
-		while spaceInfront ~= target do
+		LOG("effect ")
+		local spaceInfront = consumeSpace + (DIR_VECTORS[dir] * 2)
+		while spaceInfront ~= target and Board:IsValid(spaceInfront) do
 			local effectDamage = SpaceDamage(spaceInfront, 0)
 			if applyFire then
 				effectDamage.iFire = EFFECT_CREATE
@@ -236,6 +237,7 @@ function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, ta
 			end
 			skillEffect:AddDamage(effectDamage)
 			spaceInfront = spaceInfront + DIR_VECTORS[dir]
+			break
 		end
 	end
 end
@@ -246,6 +248,7 @@ function WorldBuilders_Consume:GetSkillEffect(p1, p2)
 	ret:AddBoardShake(0.1)
 	ret:AddDelay(0.1)
 	
+	LOG("START")
 	-- Note that this will be a valid space since we already checked in in get target area
 	local dir = GetDirection(p2 - p1) % 4
 	local spaceBehind = p1 + DIR_VECTORS[(dir + 2) % 4]

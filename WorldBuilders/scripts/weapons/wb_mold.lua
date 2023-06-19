@@ -56,13 +56,24 @@ WorldBuilders_Mold_AB = WorldBuilders_Mold_B:new
 	Damage = 2,
 }
 
+function WorldBuilders_Mold:GetTargetArea(p1)
+	local ret = PointList()
+	
+	for dir = DIR_START, DIR_END do
+		local targetSpace = p1 + DIR_VECTORS[dir]
+		if Board:GetTerrain(p2) ~= TERRAIN_BUILDING and WorldBuilders_Mold:GetSecondTargetArea(p1, targetSpace):size() > 0 then
+			ret:push_back(targetSpace)
+		end
+	end
+	
+	return ret
+end
+
 function WorldBuilders_Mold:GetSecondTargetArea(p1,p2)
 	local ret = PointList()
 	
 	for dir = DIR_START, DIR_END do
-		local pushSpace = p2 + DIR_VECTORS[dir]
-		-- TODO check occupied or something else instead - not the right check
-		
+		local pushSpace = p2 + DIR_VECTORS[dir]		
 		if Board:IsValid(pushSpace) and not (Board:IsPawnSpace(p2) and Board:IsBlocked(pushSpace, PATH_PROJECTILE)) then
 			ret:push_back(pushSpace)
 		end
@@ -93,9 +104,10 @@ function WorldBuilders_Mold:DamageEffect(p1, p2, pushDir)
 		-- automagically does the animation
 		terrain.sPawn = "Wall"
 		local p2Terrain = Board:GetTerrain(p2)
-		if p2Terrain == TERRAIN_HOLE or p2Terrain == TERRAIN_WATER or p2Terrain == TERRAIN_ACID or p2Terrain == TERRAIN_LAVA or p2Terrain == TERRAIN_FOREST then
+		if p2Terrain == TERRAIN_HOLE or p2Terrain == TERRAIN_WATER or p2Terrain == TERRAIN_ACID or p2Terrain == TERRAIN_LAVA then
 			--if p2Terrain == TERRAIN_FOREST then
 				-- hide the forest fire icon
+				--damage.sImageMark = "combat/icons/icon_wb_forest_burn_cover.png"
 			--end
 			terrain.iTerrain = TERRAIN_ROAD
 		end

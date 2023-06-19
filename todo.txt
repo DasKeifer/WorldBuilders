@@ -1,1 +1,3 @@
-EVERYTHING!!!
+Candidates:
+Allow mold to target/push if the target would be killed
+Swapping building & water causes buildings to be in water - terrain not set just building/pawn?

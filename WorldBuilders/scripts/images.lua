@@ -6,5 +6,5 @@ modApi:appendAsset("img/weapons/brute_wb_consume.png", WorldBuilders_ResourcePat
 modApi:appendAsset("img/weapons/science_wb_shift.png", WorldBuilders_ResourcePath .. "img/weapons/science_wb_shift.png")
 
 
-modApi:appendAsset("img/combat/icons/icon_forest_burn_cover.png", WorldBuilders_ResourcePath.."img/combat/icons/icon_forest_burn_cover.png")
-Location["combat/icons/icon_forest_burn_cover.png"] = Point(-9, 19)
+modApi:appendAsset("img/combat/icons/icon_wb_forest_burn_cover.png", WorldBuilders_ResourcePath.."img/combat/icons/icon_wb_forest_burn_cover.png")
+Location["combat/icons/icon_wb_forest_burn_cover.png"] = Point(-9, 19)
