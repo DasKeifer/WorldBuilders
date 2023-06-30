@@ -11,6 +11,12 @@ WorldBuilders_Consume = Skill:new
 	Range = 1,
     Damage = 1,
 	
+	ConsumeBounce = -5,
+	ProjectileHitBounce = 3,
+	ProjectilePathBounce1 = 2,
+	ProjectilePathBounce2 = -1,
+	
+	
     PowerCost = 1,
     Upgrades = 2,
     UpgradeCost = { 1, 2 },
@@ -36,7 +42,7 @@ Weapon_Texts.WorldBuilders_Consume_Upgrade2 = "+2 Range"
 WorldBuilders_Consume_B = WorldBuilders_Consume:new
 {
 	UpgradeDescription = "Can fire up to two more tiles",
-    Damage = 3,
+    Range = 3,
 }
 
 WorldBuilders_Consume_AB = WorldBuilders_Consume_B:new
@@ -81,8 +87,8 @@ end
 function WorldBuilders_Consume:AddConsumeDamage(skillEffect, consumeSpace, damage)
 	local consumeDamage = SpaceDamage(consumeSpace, damage)
 	consumeDamage.iTerrain = TERRAIN_HOLE
-	skillEffect:AddBounce(consumeSpace, -5)
-	skillEffect:AddDelay(0.1)
+	skillEffect:AddBounce(consumeSpace, self.ConsumeBounce)
+	skillEffect:AddDelay(0.2)
 	skillEffect:AddDamage(consumeDamage)
 end
 
@@ -103,9 +109,7 @@ function WorldBuilders_Consume:Consume_Building(skillEffect, p1, p2, consumeSpac
 	skillEffect:AddAnimation(p1, "Lightning_Attack_" .. dir)
 	skillEffect:AddAnimation(p1, "Lightning_Hit")
 	
-	LOG("next space")
 	while Board:IsValid(spaceInfront) and spaceInfront ~= p2 do
-		LOG("space"..spaceInfront:GetString())
 		explored[hash(spaceInfront)] = true
 		skillEffect:AddAnimation(spaceInfront, "Lightning_Attack_" .. dir)
 		
@@ -178,15 +182,12 @@ function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, ta
 			projectileDamage.iFire = true
 			side1Damage.iFire = true
 			side2Damage.iFire = true
-		
 		end
 		
-		skillEffect:AddDamage(side1Damage)
-		skillEffect:AddDamage(side2Damage)
+		return {side1Damage, side2Damage}
 	
 	-- "land" effects - also apply fire, acid, smoke
 	else
-		LOG("check 0 ")
 		if consumedTerrain == TERRAIN_ROAD or consumedTerrain == TERRAIN_RUBBLE then
 			projectileDamage.iDamage = 1
 			
@@ -221,25 +222,6 @@ function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, ta
 			projectileDamage.iSmoke = EFFECT_CREATE
 		end
 	end
-	
-	-- in between spaces
-	if applyFire or applyAcid or applySmoke then
-		LOG("effect ")
-		local spaceInfront = consumeSpace + (DIR_VECTORS[dir] * 2)
-		while spaceInfront ~= target and Board:IsValid(spaceInfront) do
-			local effectDamage = SpaceDamage(spaceInfront, 0)
-			if applyFire then
-				effectDamage.iFire = EFFECT_CREATE
-			elseif applyAcid then
-				effectDamage.iAcid = EFFECT_CREATE
-			else --applySmoke
-				effectDamage.iSmoke = EFFECT_CREATE
-			end
-			skillEffect:AddDamage(effectDamage)
-			spaceInfront = spaceInfront + DIR_VECTORS[dir]
-			break
-		end
-	end
 end
 
 function WorldBuilders_Consume:GetSkillEffect(p1, p2)
@@ -248,26 +230,56 @@ function WorldBuilders_Consume:GetSkillEffect(p1, p2)
 	ret:AddBoardShake(0.1)
 	ret:AddDelay(0.1)
 	
-	LOG("START")
 	-- Note that this will be a valid space since we already checked in in get target area
 	local dir = GetDirection(p2 - p1) % 4
-	local spaceBehind = p1 + DIR_VECTORS[(dir + 2) % 4]
+	local consumeSpace = p1 + DIR_VECTORS[(dir + 2) % 4]
 	
 	-- always at least push the space (except for building consume) - may be modified later
 	local projectileDamage = SpaceDamage(p2, 0, dir)
 		
 	-- if its a pawn, do special things
-	if Board:GetPawn(spaceBehind) ~= nil then
-		ret:AddDamage(SpaceDamage(spaceBehind, 1, dir))
-	elseif Board:IsSpawning(spaceBehind) then
-		self:Consume_Spawn(ret, spaceBehind)
-	elseif Board:GetTerrain(spaceBehind) == TERRAIN_BUILDING then
-		self:Consume_Building(ret, p1, p2, spaceBehind, dir)
+	local extraDamage = nil
+	if Board:GetPawn(consumeSpace) ~= nil then
+		ret:AddDamage(SpaceDamage(consumeSpace, 1, dir))
+	elseif Board:IsSpawning(consumeSpace) then
+		self:Consume_Spawn(ret, consumeSpace)
+	elseif Board:GetTerrain(consumeSpace) == TERRAIN_BUILDING then
+		self:Consume_Building(ret, p1, p2, consumeSpace, dir)
 	else -- terrain
-		self:Consume_Terrain(ret, projectileDamage, p2, spaceBehind, dir)
+		extraDamage = self:Consume_Terrain(ret, projectileDamage, p2, consumeSpace, dir)
 	end
 	
+	-- in between spaces
+	local spaceInfront = consumeSpace + (DIR_VECTORS[dir] * 2)
+	while spaceInfront ~= p2 and Board:IsValid(spaceInfront) do
+		local effectDamage = SpaceDamage(spaceInfront, 0)
+		if projectileDamage.iFire == EFFECT_CREATE then
+			effectDamage.iFire = EFFECT_CREATE
+		end
+		if projectileDamage.iAcid == EFFECT_CREATE then
+			effectDamage.iAcid = EFFECT_CREATE
+		end
+		if projectileDamage.iSmoke == EFFECT_CREATE then
+			effectDamage.iSmoke = EFFECT_CREATE
+		end
+		
+		ret:AddBounce(spaceInfront, self.ProjectilePathBounce1)
+		ret:AddDamage(effectDamage)
+		ret:AddDelay(0.1)
+		ret:AddBounce(spaceInfront, self.ProjectilePathBounce2)
+		
+		spaceInfront = spaceInfront + DIR_VECTORS[dir]
+	end
+	
+	ret:AddBounce(p2, self.ProjectileHitBounce)
 	ret:AddDamage(projectileDamage)
+	
+	if extraDamage ~= nil then
+		for _, damage in ipairs(extraDamage) do
+			ret:AddDamage(damage)
+			ret:AddBounce(damage.loc, self.ProjectileHitBounce)
+		end
+	end
 	
 	return ret
 end

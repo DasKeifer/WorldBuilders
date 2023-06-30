@@ -71,8 +71,47 @@ function WorldBuilders_Shift:GetTargetArea(center)
 end
 
 -- only used for B & AB weapons
-function WorldBuilders_Shift_B:GetSecondTargetArea(p1,p2)
+function WorldBuilders_Shift_B:GetTargetArea(p1)
 	return general_DiamondTarget(p1, self.Range)
+end
+
+function WorldBuilders_Shift_B:GetSecondTargetArea(center, target1)
+	local ret = PointList()
+	
+	-- "borrowed" from general_DiamondTarget and modified to not
+	-- include point
+	local size = self.Range
+	local corner = center - Point(size, size)
+	
+	local target2 = Point(corner)
+		
+	for i = 0, ((size*2+1)*(size*2+1)) do
+		local diff = center - target2
+		local dist = math.abs(diff.x) + math.abs(diff.y)
+		-- Validity check
+		if Board:IsValid(target2) and dist <= size then
+			-- check it can be pushed
+			if Board:IsPawnSpace(target1) and not self:TerrainCanBeOccupied(Board:GetTerrain(target2)) then
+				if self:AddPushToOpenSpace(target1, target2) ~= DIR_NONE then
+					ret:push_back(target2)
+				end
+			elseif Board:IsPawnSpace(target2) and not self:TerrainCanBeOccupied(Board:GetTerrain(target1)) then
+				if self:AddPushToOpenSpace(target2, target1) ~= DIR_NONE then
+					ret:push_back(target2)
+				end
+			else
+				ret:push_back(target2)
+			end
+		end
+		
+		target2 = target2 + VEC_RIGHT
+		if math.abs(target2.x - corner.x) == (size*2+1) then
+			target2.x = target2.x - (size*2+1)
+			target2 = target2 + VEC_DOWN
+		end
+	end
+	
+	return ret
 end
 
 function WorldBuilders_Shift:GetSkillEffect(p1, p2)
@@ -83,9 +122,10 @@ function WorldBuilders_Shift:GetSkillEffect(p1, p2)
 
 	local success = true
 	local p1Damage = SpaceDamage(p1, 0)
+	local p1TerrainPre = SpaceDamage(p1, 0)
 	local p1Terrain = SpaceDamage(p1, 0)
 	self:ApplyEffect(p1Damage, p2Data)
-	self:ApplyTerrain(p1Terrain, p2Data)
+	self:ApplyTerrain(p1Terrain, p1TerrainPre, p2Data)
 	
 	-- p1 is by necessity occupied
 	if not self:TerrainCanBeOccupied(Board:GetTerrain(p2)) then
@@ -101,8 +141,9 @@ function WorldBuilders_Shift:GetSkillEffect(p1, p2)
 	if success then
 		local p2Damage = SpaceDamage(p2, 0)
 		local p2Terrain = SpaceDamage(p2, 0)
+		local p2TerrainPre = SpaceDamage(p2, 0)
 		self:ApplyEffect(p2Damage, p1Data)
-		self:ApplyTerrain(p2Terrain, p1Data)
+		self:ApplyTerrain(p2Terrain, p2TerrainPre, p1Data)
 		
 		-- todo add space symbol and/or animation
 		ret:AddDamage(p1Damage)
@@ -110,6 +151,8 @@ function WorldBuilders_Shift:GetSkillEffect(p1, p2)
 		ret:AddDamage(p2Damage)
 		ret:AddBounce(p2, -5)
 		
+		ret:AddDamage(p1TerrainPre)
+		ret:AddDamage(p2TerrainPre)
 		ret:AddDamage(p1Terrain)
 		ret:AddDamage(p2Terrain)
 	end
@@ -134,14 +177,18 @@ function WorldBuilders_Shift_B:GetFinalEffect(p1,p2,p3)
 	local success = true
 	local p2Damage = SpaceDamage(p2, 0)
 	local p2Terrain = SpaceDamage(p2, 0)
+	local p2TerrainPre = SpaceDamage(p2, 0)
 	local p2BuildingPush = SpaceDamage(p2, 0)
 	self:ApplyEffect(p2Damage, p3Data)
-	self:ApplyTerrain(p2Terrain, p3Data)
+	self:ApplyTerrain(p2Terrain, p2TerrainPre, p3Data)
 	if Board:IsPawnSpace(p2) and not self:TerrainCanBeOccupied(Board:GetTerrain(p3)) then
 		local pushDir = self:AddPushToOpenSpace(p2, p3)
+		if pushDir == DIR_NONE then
+			return
+		end
 		-- for some reason trying to apply a building too causes it
 		-- to not push so we add it twice
-		if Board:GetTerrain(p2) == TERRAIN_BUILDING then
+		if Board:GetTerrain(p3) == TERRAIN_BUILDING then
 			p2Damage.iPush = pushDir
 		end
 		p2Terrain.iPush = pushDir
@@ -149,18 +196,22 @@ function WorldBuilders_Shift_B:GetFinalEffect(p1,p2,p3)
 	
 	local p3Damage = SpaceDamage(p3, 0)
 	local p3Terrain = SpaceDamage(p3, 0)
+	local p3TerrainPre = SpaceDamage(p3, 0)
 	local p3BuildingPush = SpaceDamage(p3, 0)
 	if success then
 		self:ApplyEffect(p3Damage, p2Data)
-		self:ApplyTerrain(p3Terrain, p2Data)
+		self:ApplyTerrain(p3Terrain, p3TerrainPre, p2Data)
 		if Board:IsPawnSpace(p3) and not self:TerrainCanBeOccupied(Board:GetTerrain(p2)) then
 			local pushDir = self:AddPushToOpenSpace(p3, p2)
+			if pushDir == DIR_NONE then
+				return
+			end
 			-- for some reason trying to apply a building too causes it
 			-- to not push so we add it twice
-			if Board:GetTerrain(p3) == TERRAIN_BUILDING then
-				p2Damage.iPush = pushDir
+			if Board:GetTerrain(p2) == TERRAIN_BUILDING then
+				p3Damage.iPush = pushDir
 			end
-			p2Terrain.iPush = pushDir
+			p3Terrain.iPush = pushDir
 		end
 	end
 	
@@ -171,6 +222,8 @@ function WorldBuilders_Shift_B:GetFinalEffect(p1,p2,p3)
 		ret:AddDamage(p3Damage)
 		ret:AddBounce(p3, -5)
 		
+		ret:AddDamage(p2TerrainPre)
+		ret:AddDamage(p3TerrainPre)
 		ret:AddDamage(p2Terrain)
 		ret:AddDamage(p3Terrain)
 	end
@@ -199,13 +252,23 @@ function WorldBuilders_Shift:ApplyEffect(spaceDamage, spaceData)
 	if spaceData.smoke then spaceDamage.iSmoke = EFFECT_CREATE end
 end
 
-function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceData)
+-- If swapping a building in, the tile terrain doesn't always update rigth. For example, if
+-- its a water tile, it will remain visually a water tile until its swapped with land
+-- despite being ocnsidered a road tile. To get around we do a pre damage to change it
+-- to road and then do the normal changes
+function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceDamagePreform, spaceData)
 	-- Buildings will literally crash if we set to iTerrain and a pawn is on
 	-- it so we have to do it via script instead.	
 	-- We also have oddities with setting terrain so we just do it via post script.
 	-- for whatever reason this works better
-	local terrain = spaceData.terrain
-	if spaceData.fireType == FIRE_TYPE_FOREST_FIRE then terrain = TERRAIN_FOREST end
+	-- Need to handle forest fires special since they use raod terrain and we can'table.concat
+	-- directly set a space to a forest fire
+	if spaceData.fireType == FIRE_TYPE_FOREST_FIRE then spaceData.terrain = TERRAIN_FOREST end
+	
+	if spaceData.terrain == TERRAIN_BUILDING then
+		spaceDamagePreform.iTerrain = TERRAIN_ROAD
+	end
+	
 	spaceDamage.sScript = [[Board:SetTerrain(]] .. spaceDamage.loc:GetString() .. [[, ]] .. spaceData.terrain .. [[)]]
 	LOG("TERRAIN "..spaceData.terrain)
 	
@@ -252,16 +315,14 @@ end
 -- push to get around this that should be applied before the
 -- actual space damage
 function WorldBuilders_Shift:AddPushToOpenSpace(p1, p2)
-	local baseDir = GetDirection(p2 - p1)
-	local dirs = {(baseDir + 2) % 4, baseDir, (baseDir + 1) % 4, (baseDir - 1) % 4}
+	local baseDir = GetDirection(p1 - p2)
+	local dirs = {baseDir, (baseDir + 2) % 4, (baseDir + 1) % 4, (baseDir - 1) % 4}
 	
 	for _, dir in pairs(dirs) do
 		local pushSpace = Point(p1 + DIR_VECTORS[dir])
 		-- if its a valid space and either is open for the pawn or its the other space and that space
 		-- can be occupied
-		LOG("CHECKING " .. pushSpace:GetString())
 		if Board:IsValid(pushSpace) and (self:IsOpenForPawn(pushSpace) or (pushSpace == p2 and self:TerrainCanBeOccupied(Board:GetTerrain(p1)))) then
-			LOG("YEST")
 			return dir
 		end
 	end

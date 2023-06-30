@@ -13,7 +13,7 @@ WorldBuilders_Mold = Skill:new
 	PathSize = 1,
 	Projectile = false,
     Damage = 1,
-    SplashDamage = 1,
+    SplashDamage = 0,
     PowerCost = 0,
     Upgrades = 2,
     UpgradeCost = { 2, 2 },
@@ -48,6 +48,7 @@ WorldBuilders_Mold_B = WorldBuilders_Mold:new
 {
 	UpgradeDescription = "Does 1 damage to surrounding tiles and sets target tile on fire",
 	Erupt = true,
+    SplashDamage = 1,
 }
 
 WorldBuilders_Mold_AB = WorldBuilders_Mold_B:new
@@ -61,7 +62,7 @@ function WorldBuilders_Mold:GetTargetArea(p1)
 	
 	for dir = DIR_START, DIR_END do
 		local targetSpace = p1 + DIR_VECTORS[dir]
-		if Board:GetTerrain(p2) ~= TERRAIN_BUILDING and WorldBuilders_Mold:GetSecondTargetArea(p1, targetSpace):size() > 0 then
+		if Board:GetTerrain(targetSpace) ~= TERRAIN_BUILDING and WorldBuilders_Mold:GetSecondTargetArea(p1, targetSpace):size() > 0 then
 			ret:push_back(targetSpace)
 		end
 	end
@@ -72,10 +73,29 @@ end
 function WorldBuilders_Mold:GetSecondTargetArea(p1,p2)
 	local ret = PointList()
 	
-	for dir = DIR_START, DIR_END do
-		local pushSpace = p2 + DIR_VECTORS[dir]		
-		if Board:IsValid(pushSpace) and not (Board:IsPawnSpace(p2) and Board:IsBlocked(pushSpace, PATH_PROJECTILE)) then
-			ret:push_back(pushSpace)
+	-- let them choose anyspace if the space is unoccupied or the pawn will die
+	if (not Board:IsPawnSpace(p2)) or self.Damage >= Board:GetPawn(p2):GetHealth() then
+		ret:push_back(p2)
+		for dir = DIR_START, DIR_END do
+			local targetSpace = p2 + DIR_VECTORS[dir]
+			if Board:IsValid(targetSpace) and targetSpace ~= p1 then
+				ret:push_back(targetSpace)
+			end
+		end
+	-- otherwise they have to have a valid space to push to
+	else
+		for dir = DIR_START, DIR_END do
+			local pushSpace = p2 + DIR_VECTORS[dir]	
+			-- Make sure its a valid space
+			if Board:IsValid(pushSpace) and self:TerrainCanBeOccupied(Board:GetTerrain(pushSpace)) then
+				-- if its not occupied, push it
+				if not Board:IsPawnSpace(pushSpace) then
+					ret:push_back(pushSpace)
+				-- if it is occupied, only push if the attack kills the enemy
+				elseif self.SplashDamage >= Board:GetPawn(pushSpace):GetHealth() then
+					ret:push_back(pushSpace)
+				end
+			end
 		end
 	end
 	
@@ -87,9 +107,19 @@ function WorldBuilders_Mold:GetSkillEffect(p1, p2)
 end
 
 function WorldBuilders_Mold:GetFinalEffect(p1,p2,p3)
+	--if its the same space, there is no pawn or the pawn would die, don't push
+	if p2 == p3 or not Board:IsPawnSpace(p2) or self.Damage >= Board:GetPawn(p2):GetHealth() then
+		return self:GetSkillEffect(p1, p2)
+	end
 	return self:DamageEffect(p1, p2, GetDirection(p3 - p2))
 end
 
+function WorldBuilders_Mold:TerrainCanBeOccupied(terrain)
+	return terrain ~= TERRAIN_BUILDING and terrain ~= TERRAIN_MOUNTAIN
+end
+
+
+--Rework to not push if already fatal
 function WorldBuilders_Mold:DamageEffect(p1, p2, pushDir)
 	local ret = SkillEffect()
 	

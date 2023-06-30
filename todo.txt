@@ -1,3 +1,17 @@
+TODO:
+Mech sprites
+Achievements & images
+VFX in general
+
+Mold:
+
+Swap:
+test frozen, custom tile & unique building
+
+Consume:
+Add delay in tile damages and bounces for traveling
+
+
 Candidates:
-Allow mold to target/push if the target would be killed
-Swapping building & water causes buildings to be in water - terrain not set just building/pawn?
+Visual "bug" showing push damage when swap pushed with adjacent mountain or building. Not sure there is a way around this
+Add projectile image(s) for consume
