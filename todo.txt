@@ -4,6 +4,7 @@ Achievements & images
 VFX in general
 
 Mold:
+Work on sprite anim - only lift one arm to slow it down
 
 Swap:
 test frozen, custom tile & unique building
