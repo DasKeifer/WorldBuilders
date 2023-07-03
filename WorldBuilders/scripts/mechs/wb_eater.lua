@@ -7,13 +7,13 @@ local mod = modApi:getCurrentMod()
 local squadColors = modApi:getPaletteImageOffset("worldbuilders_color")
 
 local files = {
-	"th_forestfirer.png",
-	"th_forestfirer_a.png",
-	"th_forestfirer_w.png",
-	"th_forestfirer_w_broken.png",
-	"th_forestfirer_broken.png",
-	"th_forestfirer_ns.png",
-	"th_forestfirer_h.png"
+	"wb_eater.png",
+	"wb_eater_a.png",
+	"wb_eater_w.png",
+	"wb_eater_w_broken.png",
+	"wb_eater_broken.png",
+	"wb_eater_ns.png",
+	"wb_eater_h.png"
 }
 
 for _, file in ipairs(files) do
@@ -21,12 +21,12 @@ for _, file in ipairs(files) do
 end
 
 local a = ANIMS
-a.wb_eater =         a.MechUnit:new{Image = "units/player/th_forestfirer.png",          PosX = -19, PosY = 5 }
-a.wb_eatera =        a.MechUnit:new{Image = "units/player/th_forestfirer_a.png",        PosX = -19, PosY = 5, NumFrames = 4 }
-a.wb_eaterw =        a.MechUnit:new{Image = "units/player/th_forestfirer_w.png",        PosX = -19, PosY = 5 }
-a.wb_eater_broken =  a.MechUnit:new{Image = "units/player/th_forestfirer_broken.png",   PosX = -19, PosY = 10 }
-a.wb_eaterw_broken = a.MechUnit:new{Image = "units/player/th_forestfirer_w_broken.png", PosX = -19, PosY = 10 }
-a.wb_eater_ns =      a.MechIcon:new{Image = "units/player/th_forestfirer_ns.png" }
+a.wb_eater =         a.MechUnit:new{Image = "units/player/wb_eater.png",          PosX = -19, PosY = 5 }
+a.wb_eatera =        a.MechUnit:new{Image = "units/player/wb_eater_a.png",        PosX = -19, PosY = 5, NumFrames = 4 }
+a.wb_eaterw =        a.MechUnit:new{Image = "units/player/wb_eater_w.png",        PosX = -19, PosY = 5 }
+a.wb_eater_broken =  a.MechUnit:new{Image = "units/player/wb_eater_broken.png",   PosX = -19, PosY = 10 }
+a.wb_eaterw_broken = a.MechUnit:new{Image = "units/player/wb_eater_w_broken.png", PosX = -19, PosY = 10 }
+a.wb_eater_ns =      a.MechIcon:new{Image = "units/player/wb_eater_ns.png" }
 
 
 WorldBuilders_EaterMech = Pawn:new{	
