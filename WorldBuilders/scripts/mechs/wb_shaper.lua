@@ -7,13 +7,13 @@ local mod = modApi:getCurrentMod()
 local squadColors = modApi:getPaletteImageOffset("worldbuilders_color")
 
 local files = {
-	"th_arbiformer.png",
-	"th_arbiformer_a.png",
-	"th_arbiformer_w.png",
-	"th_arbiformer_w_broken.png",
-	"th_arbiformer_broken.png",
-	"th_arbiformer_ns.png",
-	"th_arbiformer_h.png"
+	"wb_shaper.png",
+	"wb_shaper_a.png",
+	"wb_shaper_w.png",
+	"wb_shaper_w_broken.png",
+	"wb_shaper_broken.png",
+	"wb_shaper_ns.png",
+	"wb_shaper_h.png"
 }
 
 for _, file in ipairs(files) do
@@ -21,12 +21,12 @@ for _, file in ipairs(files) do
 end
 
 local a = ANIMS
-a.wb_shaper =         a.MechUnit:new{Image = "units/player/th_arbiformer.png",          PosX = -22, PosY = -7 }
-a.wb_shapera =        a.MechUnit:new{Image = "units/player/th_arbiformer_a.png",        PosX = -22, PosY = -7, NumFrames = 4 }
-a.wb_shaperw =        a.MechUnit:new{Image = "units/player/th_arbiformer_w.png",        PosX = -22, PosY = -6 }
-a.wb_shaper_broken =  a.MechUnit:new{Image = "units/player/th_arbiformer_broken.png",   PosX = -22, PosY =  2 }
-a.wb_shaperw_broken = a.MechUnit:new{Image = "units/player/th_arbiformer_w_broken.png", PosX = -22, PosY =  5 }
-a.wb_shaper_ns =      a.MechIcon:new{Image = "units/player/th_arbiformer_ns.png" }
+a.wb_shaper =         a.MechUnit:new{Image = "units/player/wb_shaper.png",          PosX = -22, PosY = -7 }
+a.wb_shapera =        a.MechUnit:new{Image = "units/player/wb_shaper_a.png",        PosX = -22, PosY = -7, NumFrames = 6 }
+a.wb_shaperw =        a.MechUnit:new{Image = "units/player/wb_shaper_w.png",        PosX = -20, PosY = -3 }
+a.wb_shaper_broken =  a.MechUnit:new{Image = "units/player/wb_shaper_broken.png",   PosX = -22, PosY =  -4 }
+a.wb_shaperw_broken = a.MechUnit:new{Image = "units/player/wb_shaper_w_broken.png", PosX = -20, PosY =  0 }
+a.wb_shaper_ns =      a.MechIcon:new{Image = "units/player/wb_shaper_ns.png" }
 
 
 WorldBuilders_ShaperMech = Pawn:new{

@@ -244,6 +244,8 @@ function WorldBuilders_Consume:GetSkillEffect(p1, p2)
 	elseif Board:IsSpawning(consumeSpace) then
 		self:Consume_Spawn(ret, consumeSpace)
 	elseif Board:GetTerrain(consumeSpace) == TERRAIN_BUILDING then
+		-- remove the push
+		projectileDamage.iPush = DIR_NONE
 		self:Consume_Building(ret, p1, p2, consumeSpace, dir)
 	else -- terrain
 		extraDamage = self:Consume_Terrain(ret, projectileDamage, p2, consumeSpace, dir)
