@@ -1,18 +1,15 @@
 TODO:
-Mech sprites
 Achievements & images
 VFX in general
+Add projectile image(s) for consume
 
 Mold:
-Work on sprite anim - only lift one arm to slow it down
 
 Swap:
 test frozen, custom tile & unique building
 
 Consume:
-Add delay in tile damages and bounces for traveling
 
 
 Candidates:
 Visual "bug" showing push damage when swap pushed with adjacent mountain or building. Not sure there is a way around this
-Add projectile image(s) for consume

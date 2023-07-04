@@ -20,12 +20,14 @@ for _, file in ipairs(files) do
 	modApi:appendAsset("img/units/player/" .. file, mechPath .. file)
 end
 
+-- -x = left, +x = right
+-- -y = up, +y - down
 local a = ANIMS
-a.wb_shaper =         a.MechUnit:new{Image = "units/player/wb_shaper.png",          PosX = -22, PosY = -7 }
-a.wb_shapera =        a.MechUnit:new{Image = "units/player/wb_shaper_a.png",        PosX = -22, PosY = -7, NumFrames = 6 }
-a.wb_shaperw =        a.MechUnit:new{Image = "units/player/wb_shaper_w.png",        PosX = -20, PosY = -3 }
-a.wb_shaper_broken =  a.MechUnit:new{Image = "units/player/wb_shaper_broken.png",   PosX = -22, PosY =  -7 }
-a.wb_shaperw_broken = a.MechUnit:new{Image = "units/player/wb_shaper_w_broken.png", PosX = -20, PosY =  -3 }
+a.wb_shaper =         a.MechUnit:new{Image = "units/player/wb_shaper.png",          PosX = -22, PosY = -9 }
+a.wb_shapera =        a.MechUnit:new{Image = "units/player/wb_shaper_a.png",        PosX = -22, PosY = -9, NumFrames = 6 }
+a.wb_shaperw =        a.MechUnit:new{Image = "units/player/wb_shaper_w.png",        PosX = -22, PosY = 0 }
+a.wb_shaper_broken =  a.MechUnit:new{Image = "units/player/wb_shaper_broken.png",   PosX = -21, PosY =  -9 }
+a.wb_shaperw_broken = a.MechUnit:new{Image = "units/player/wb_shaper_w_broken.png", PosX = -26, PosY =  0 }
 a.wb_shaper_ns =      a.MechIcon:new{Image = "units/player/wb_shaper_ns.png" }
 
 
