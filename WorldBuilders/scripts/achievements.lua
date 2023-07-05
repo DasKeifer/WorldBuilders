@@ -1,7 +1,10 @@
 local mod = mod_loader.mods[modApi.currentMod]
 local path = mod.scriptPath
 
-WorldBuilderAchievements = {
+WorldBuildersAchievements = {
+	zapPreDamage = 0,
+	zapBuildingHealth = 0,
+	spleefSkillBuilt = false,
 }
 
 local squad = "worldbuilders"
@@ -44,105 +47,114 @@ local function isInMission()
 	return isGame() and mission ~= nil and mission ~= Mission_Test
 end
 
-local function getAchievementSaveData()
-	local mission = GetCurrentMission()
-	
-	if mission.treeherders == nil then
-		mission.treeherders = {}
-		mission.treeherders.achiev_naturalistTurnKills = 0
-		mission.treeherders.achiev_naturalistMissionKills = 0
+-- Great Wall
+local function searchForMountains(doReverse)
+	local possibleLoc = {}
+	local size = Board:GetSize()
+	local yPoint = 0
+	local yGoal = size.y - 1
+	local baseDir = DIR_DOWN
+	local closest = 0
+	if doReverse then
+		yPoint = size.y - 1
+		yGoal = 0
+		baseDir = DIR_UP
 	end
 	
-	return mission.treeherders
-end
-
--- Naturalist
-local function totalNaturalistKills(saveData)
-	return saveData.achiev_naturalistMissionKills + saveData.achiev_naturalistTurnKills
-end
-
--- Treehuggers
-local function countForestsAndForestFires()
-	local forestCount = 0
-	local forestFireCount = 0
-	if Board then
-		local size = Board:GetSize()
-		for y = 0, size.y - 1 do
-			for x = 0, size.x - 1 do
-				local p = Point(x, y)
-				if forestUtils.isAForest(p) then
-					forestCount = forestCount + 1
+	-- Create starting points
+	for x = 0, size.x - 1 do
+		local point = Point(x, yPoint)
+		if Board:GetTerrain(point) == TERRAIN_MOUNTAIN then
+			possibleLoc[#possibleLoc + 1] = point
+		end
+	end	
+	
+	local hash = function(point) return point.x + point.y * size.x end
+	local explored = {}
+	while #possibleLoc ~= 0 do
+		local current = pop_back(possibleLoc)
+		
+		if not explored[hash(current)] then
+			explored[hash(current)] = true
+			
+			if Board:GetTerrain(current) == TERRAIN_MOUNTAIN then
+				local value = current.y
+				if doReverse then
+					value = size.y - current.y
 				end
 				
-				if forestUtils.isAForestFire(p) then
-					forestFireCount = forestFireCount + 1
+				if value > closest then
+					closest = value
+					if closest >= size.y then
+						break
+					end
 				end
-			end
+			
+				-- in reverse search priority
+				local back = (baseDir + 2) % 4
+				local front = baseDir
+				local side1 = (baseDir + 1) % 4
+				local side2 = (baseDir + 3) % 4
+				local points = {current + DIR_VECTORS[back], current + DIR_VECTORS[back] + DIR_VECTORS[side1], current + DIR_VECTORS[back] + DIR_VECTORS[side2],
+								current + DIR_VECTORS[side1], current + DIR_VECTORS[side2],
+								current + DIR_VECTORS[front] + DIR_VECTORS[side1], current + DIR_VECTORS[front] + DIR_VECTORS[side2], current + DIR_VECTORS[front]}
+				for _, neighbor in pairs(points) do
+					if Board:IsValid(neighbor) and not explored[hash(neighbor)] then
+						possibleLoc[#possibleLoc + 1] = neighbor
+					end
+				end
+			end	
 		end
 	end
-	return forestCount, forestFireCount
+	
+	return closest
 end
 
+local function sideToSideMountainChainLength()
+	-- left bottom to top right check, then reverse check
+	LOG("PASS 1")
+	local length = searchForMountains(false)
+	if length < Board:GetSize().x then
+		LOG("PASS 2")
+		local length2 = searchForMountains(true)
+		if length2 > length then
+			return length2
+		end
+	end
+	return length
+end
 
-local baseTooltip = achievements.naturalist.getTooltip
-achievements.naturalist.getTooltip = function(self)
+local baseTooltip = achievements.greatwall.getTooltip
+achievements.greatwall.getTooltip = function(self)
 	local result = baseTooltip(self)
 	
-	if (not achievements.naturalist:isComplete()) and isInMission() then
-		result = result .. "\n\nVek Killed: " .. tostring(totalNaturalistKills(getAchievementSaveData()))
+	if (not achievements.greatwall:isComplete()) and isInMission() then
+		result = result .. "\n\nCurrent Mountain Chain Length: " .. tostring(sideToSideMountainChainLength() .. " / " .. Board:GetSize().x)
+		--result = result .. "\n\nCurrent Mountain Chain Length: " .. " / " .. Board:GetSize().x
 	end
 
 	return result
 end
 
-local baseTooltip = achievements.treehugger.getTooltip
-achievements.treehugger.getTooltip = function(self)
-	local result = baseTooltip(self)
-	if (not achievements.treehugger:isComplete()) and isInMission() then
-		forestCount, forestFireCount = countForestsAndForestFires()
-		result = result .. "\n\nForests: " .. tostring(forestCount) .. " / " .. tostring(TreeherdersAchievements.treehuggerMinTrees) .. "\nForest Fires: " .. tostring(forestFireCount) .. "\n\nHint: Repairing on a forest fire tile will turn it into a ground tile"
-	end
-	return result
+-- utilitarian
+local function determineTotalGridThread()
+	local gridThreat = 0
+	
+	-- TODO: Look through all queued effects
+	
+	return gridThreat
 end
 
--- Treehuggers & naturalist
-function TreeherdersAchievements.onMissionEndHook(mission)
-	if isRightSquad() then
-		if not achievements.treehugger:isComplete() then
-			forestCount, forestFireCount = countForestsAndForestFires()
-			if forestCount >= TreeherdersAchievements.treehuggerMinTrees and forestFireCount == 0 then
-				achievements.treehugger:trigger()
-			end
-		end
-		
-		if not achievements.naturalist:isComplete() then
-			if totalNaturalistKills(getAchievementSaveData()) == 0 then
-				achievements.naturalist:trigger()
-			end
-		end
+-- Great Wall
+function WorldBuildersAchievements.onMissionEndHook(mission)
+	if (not achievements.greatwall:isComplete() and sideToSideMountainChainLength() >= Board:GetSize().x) then
+		achievements.greatwall:trigger()
 	end
 end
 
--- Naturalist
-function TreeherdersAchievements.onMissionStartHook(mission)
-	if not achievements.naturalist:isComplete() and isRightSquad() then
-		getAchievementSaveData().achiev_naturalistMissionKills = 0
-	end
-end
-
--- Naturalist
-function TreeherdersAchievements.onNextTurnHook(mission)
-	if not achievements.naturalist:isComplete() and isRightSquad() then
-		saveData = getAchievementSaveData()
-		-- Add the turn kills then clear the turn kills
-		saveData.achiev_naturalistMissionKills = totalNaturalistKills(saveData)
-		saveData.achiev_naturalistTurnKills = 0
-	end
-end
-
--- Treehuggers
-function TreeherdersAchievements.onSkillBuildHook(mission, pawn, weaponId, p1, p2, skillEffect)
-	if not achievements.myfriends:isComplete() and isRightSquad() then				
+-- Utilitarian
+function WorldBuildersAchievements.onSkillBuildHook(mission, pawn, weaponId, p1, p2, skillEffect)
+	if isRightSquad() and not achievements.utilitarian:isComplete() then				
 		-- make sure we have the actual weaponid
 		if type(weaponId) == 'table' then
 			weaponId = weaponId.__Id
@@ -151,60 +163,98 @@ function TreeherdersAchievements.onSkillBuildHook(mission, pawn, weaponId, p1, p
 		-- check the conditions to see if this built skill satisfies the requirement
 
 		LOG(weaponId)
-		if string.sub(weaponId, 1 , string.len("Treeherders_Treevenge")) == "Treeherders_Treevenge" then
+		if string.sub(weaponId, 1 , string.len("WorldBuilders_Consume")) == "WorldBuilders_Consume" then
 			-- reset the flag. We do this inside the check because other
 			-- weapons can be called between the final skill build hook and the
 			-- skill end hook
-			TreeherdersAchievements.myfriendsSkillBuilt = false
+			WorldBuildersAchievements.zapBuildingHealth = 0
 		
-			LOG("BUILDING TREEVENGE")
-			if Board:GetPawn(p2) ~= nil and Board:GetPawn(p2):IsEnemy() then
-				LOG("Attacking enemy")
-				for _, damage in pairs(extract_table(skillEffect.effect)) do	
-					if damage.loc == p2 then
-						LOG("Damage at loc p2 " .. damage.iDamage)	
-						if damage.iDamage == Treeherders_Treevenge.DamageCap then
-							LOG("CAPPED!")	
-							TreeherdersAchievements.myfriendsSkillBuilt = true
-						end
-						break
-					end
-				end
+			LOG("BUILDING CONSUME")
+			local consumeSpace = p1 + DIR_VECTORS[(dir + 2) % 4]
+			if Board:GetTerrain(consumeSpace) == TERRAIN_BUILDING then
+				WorldBuildersAchievements.zapBuildingHealth = Board:GetHealth(consumeSpace)
 			end
 		end
 	end
 end
 
--- Treehuggers
-function TreeherdersAchievements.onSkillEndHook(mission, pawn, weaponId, p1, p2)
-	if not achievements.myfriends:isComplete() and isRightSquad() then
+-- Spleef
+function WorldBuildersAchievements.onFinalEffectBuildHook(mission, pawn, weaponId, p1, p2, p3, skillEffect)
+	if isRightSquad() and not achievements.spleef:isComplete() then				
 		-- make sure we have the actual weaponid
 		if type(weaponId) == 'table' then
 			weaponId = weaponId.__Id
 		end 
 		
-		if string.sub(weaponId, 1 , string.len("Treeherders_Treevenge")) == "Treeherders_Treevenge" and TreeherdersAchievements.myfriendsSkillBuilt then
-			achievements.myfriends:trigger()
+		-- check the conditions to see if this built skill satisfies the requirement
+
+		if string.sub(weaponId, 1 , string.len("WorldBuilders_Shift")) == "WorldBuilders_Shift" then
+			-- reset the flag. We do this inside the check because other
+			-- weapons can be called between the final skill build hook and the
+			-- skill end hook
+			WorldBuildersAchievements.spleefSkillBuilt = false
+		
+			-- update here
+			-- Skip if not a multitarget - but how?
+			-- for p2 & p3 to see if they will fall into a void when swapped
+			if (Board:GetTerrain(p3) == TERRAIN_HOLE and Board:GetPawn(p2) ~= nil and Board:GetPawn(p2):IsEnemy() and (Board:GetPawn(p2):IsFrozen() or not Board:GetPawn(p2):IsFlying())) or 
+			   (Board:GetTerrain(p2) == TERRAIN_HOLE and Board:GetPawn(p3) ~= nil and Board:GetPawn(p3):IsEnemy() and (Board:GetPawn(p3):IsFrozen() or not Board:GetPawn(p3):IsFlying())) then
+				WorldBuildersAchievements.spleefSkillBuilt = true
+			end
 		end
 	end
 end
 
--- Naturalist
-function TreeherdersAchievements.onPawnKilledHook(mission, pawn)
-	if not achievements.naturalist:isComplete() and isRightSquad() then
-		if forestUtils.isAVek(pawn) then
-			getAchievementSaveData().achiev_naturalistTurnKills = getAchievementSaveData().achiev_naturalistTurnKills + 1
+-- Utilitarian
+function WorldBuildersAchievements.onSkillStartHook(mission, pawn, weaponId, p1, p2)
+	if isRightSquad() and not achievements.utilitarian:isComplete()then
+		-- make sure we have the actual weaponid
+		if type(weaponId) == 'table' then
+			weaponId = weaponId.__Id
+		end 
+		
+		if string.sub(weaponId, 1 , string.len("WorldBuilders_Consume")) == "WorldBuilders_Consume" and WorldBuildersAchievements.zapBuildingHealth > 0 then
+			WorldBuildersAchievements.zapPreDamage = determineTotalGridThread()
+		end
+	end
+end
+
+-- Utilitarian
+function WorldBuildersAchievements.onSkillEndHook(mission, pawn, weaponId, p1, p2)
+	if isRightSquad() and not achievements.utilitarian:isComplete()then
+		-- make sure we have the actual weaponid
+		if type(weaponId) == 'table' then
+			weaponId = weaponId.__Id
+		end 
+		
+		if string.sub(weaponId, 1 , string.len("WorldBuilders_Consume")) == "WorldBuilders_Consume" and WorldBuildersAchievements.zapBuildingHealth > 0 then
+			if WorldBuildersAchievements.zapPreDamage - determineTotalGridThread() > zapBuildingHealth then
+				achievements.utilitarian:trigger()
+			end
+		end
+	end
+end
+
+-- Spleef
+function WorldBuildersAchievements.onFinalEffectEndHook(mission, pawn, weaponId, p1, p2, p3)
+	if isRightSquad() and not achievements.spleef:isComplete()then
+		-- make sure we have the actual weaponid
+		if type(weaponId) == 'table' then
+			weaponId = weaponId.__Id
+		end 
+		
+		if string.sub(weaponId, 1 , string.len("WorldBuilders_Shift")) == "WorldBuilders_Shift" and WorldBuildersAchievements.spleefSkillBuilt then
+			achievements.spleef:trigger()
 		end
 	end
 end
 
 
-function TreeherdersAchievements:addHooks()
-	modApi.events.onMissionStart:subscribe(self.onMissionStartHook)
-	modApi.events.onNextTurn:subscribe(self.onNextTurnHook)
+function WorldBuildersAchievements:addHooks()
 	modApi.events.onMissionEnd:subscribe(self.onMissionEndHook)
 	
 	modapiext:addSkillBuildHook(self.onSkillBuildHook)
 	modapiext:addSkillEndHook(self.onSkillEndHook)
-	modapiext:addPawnKilledHook(self.onPawnKilledHook)
+	modapiext:addFinalEffectBuildHook(self.onFinalEffectBuildHook)
+	modapiext:addFinalEffectEndHook(self.onFinalEffectEndHook)
 end

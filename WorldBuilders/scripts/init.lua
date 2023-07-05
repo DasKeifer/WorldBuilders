@@ -16,7 +16,7 @@ function mod:init()
 	require(self.scriptPath .. "palettes")
 
 	-- Achievements... TBD
-	-- require(self.scriptPath .. "achievements")
+	require(self.scriptPath .. "achievements")
 
 	-- Libs
 	-- none
@@ -32,10 +32,7 @@ function mod:init()
 	require(self.scriptPath .. "weapons/wb_shift")
 	
 	-- Shop... TBD
-	-- modApi:addWeaponDrop("truelch_M10THowitzerArtillery")
-	
-	--Tutorial tips... TBD
-	--require(self.scriptPath .. "tips")
+	-- modApi:addWeaponDrop("...")
 end
 
 function mod:load(options, version)
@@ -51,6 +48,8 @@ function mod:load(options, version)
 		"... Something cool here...",
 		self.resourcePath .. "img/squad_icon.png"
 	)
+	
+	WorldBuildersAchievements:addHooks()
 end
 
 return mod
