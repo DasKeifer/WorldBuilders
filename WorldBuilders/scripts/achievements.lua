@@ -162,7 +162,6 @@ function WorldBuildersAchievements.onSkillBuildHook(mission, pawn, weaponId, p1,
 		
 		-- check the conditions to see if this built skill satisfies the requirement
 
-		LOG(weaponId)
 		if string.sub(weaponId, 1 , string.len("WorldBuilders_Consume")) == "WorldBuilders_Consume" then
 			-- reset the flag. We do this inside the check because other
 			-- weapons can be called between the final skill build hook and the

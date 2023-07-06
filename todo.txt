@@ -4,17 +4,16 @@ Add projectile image(s) for consume
 weapon images
 
 Mold:
-handle immovable pawns for persistent(break mountains)
+handle immovable pawns)
 
 Swap:
 test frozen tiles
-dont allow:
- immovable swaps with non occupiable terrain 
- 0 movement, immovable swaps
- time pods (board:IsPod() - Mission.assetLoc)
+handle mines and belts?
 
 Consume:
 Emerging vek space
+sand tiles not working
+consolidate terrain & damage
 
 Acheivements:
 Utilitarian - how to get queued attacks?
