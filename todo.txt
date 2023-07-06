@@ -1,18 +1,22 @@
 TODO:
-Achievements & images
 VFX in general
 Add projectile image(s) for consume
+weapon images
 
 Mold:
+handle immovable pawns for persistent(break mountains)
 
 Swap:
-test frozen, custom tile & unique building
+test frozen tiles
+dont allow:
+ immovable swaps with non occupiable terrain 
+ 0 movement, immovable swaps
+ time pods (board:IsPod() - Mission.assetLoc)
 
 Consume:
 Emerging vek space
 
 Acheivements:
-Great wall not working positive direction?
 Utilitarian - how to get queued attacks?
 images
 

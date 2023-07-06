@@ -90,16 +90,35 @@ function WorldBuilders_Shift_B:GetSecondTargetArea(center, target1)
 		local dist = math.abs(diff.x) + math.abs(diff.y)
 		-- Validity check
 		if Board:IsValid(target2) and dist <= size then
-			-- check it can be pushed
-			if Board:IsPawnSpace(target1) and not self:TerrainCanBeOccupied(Board:GetTerrain(target2)) then
-				if self:AddPushToOpenSpace(target1, target2) ~= DIR_NONE then
-					ret:push_back(target2)
+			local goodTarget = true
+			if Board:IsPawnSpace(target1) then
+				local pawn = Board:GetPawn(target1)
+				-- non pushable when unoccupiable TERRAIN
+				if not pawn:IsPushable() and not self:TerrainCanBeOccupied(Board:GetTerrain(target2)) then
+					goodTarget = false
+				-- non pushable, no movement speed (satelites and dams)
+				elseif not pawn:IsPushable() and pawn:GetMoveSpeed() <= 0 then
+					goodTarget = false
+				-- occupiable terrain with no valid push locations
+				elseif pawn:IsPushable() and self:AddPushToOpenSpace(target1, target2) == DIR_NONE)
+					goodTarget = false
 				end
-			elseif Board:IsPawnSpace(target2) and not self:TerrainCanBeOccupied(Board:GetTerrain(target1)) then
-				if self:AddPushToOpenSpace(target2, target1) ~= DIR_NONE then
-					ret:push_back(target2)
+			end
+			if Board:IsPawnSpace(target2) then
+				local pawn = Board:GetPawn(target2)
+				-- non pushable when unoccupiable TERRAIN
+				if not pawn:IsPushable() and not self:TerrainCanBeOccupied(Board:GetTerrain(target1)) then
+					goodTarget = false
+				-- non pushable, no movement speed (satelites and dams)
+				elseif not pawn:IsPushable() and pawn:GetMoveSpeed() <= 0 then
+					goodTarget = false
+				-- occupiable terrain with no valid push locations
+				elseif pawn:IsPushable() and self:AddPushToOpenSpace(target2, target1) == DIR_NONE)
+					goodTarget = false
 				end
-			else
+			end
+			
+			if goodTarget then
 				ret:push_back(target2)
 			end
 		end
@@ -233,6 +252,7 @@ end
 
 function WorldBuilders_Shift:GetTerrainAndEffectData(space)
 	return {
+		origSpace = space,
 		terrain = Board:GetTerrain(space),
 		customTile = Board:GetCustomTile(space),
 		populated = Board:IsPowered(space),
@@ -279,16 +299,26 @@ function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceDamagePreform, space
 		
 	end
 	
-	if spaceData.customTile ~= nil and spaceData.customTile ~= "" then
-		LOG("CUSTOM TILE")
-		spaceDamage.sScript = spaceDamage.sScript .. [[
-				modApi.Board:SetCustomTile(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.customTile .. [[")]]
-	end
+	spaceDamage.sScript = spaceDamage.sScript .. [[
+			Board:SetCustomTile(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.customTile .. [[")]]
+	LOG("CUSTOM TILE? "..spaceData.customTile)
+			
 	if spaceData.specialBuilding ~= "" then
 		LOG("SPECIAL BULDING")
-		spaceDamage.sScript = spaceDamage.sScript .. [[
-				Board:SetUniqueBuilding(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.specialBuilding .. [[")]]
+		local criticals = GetCurrentMission().Criticals
+		if criticals ~= nil then
+			LOG("CRITICAL BULDING")
+			for index = 1, #criticals do
+				if criticals[index] = spaceData.origSpace then
+					spaceDamage.sScript = spaceDamage.sScript .. [[
+								GetCurrentMission().Criticals[]] .. index .. [[] = ]] .. spaceDamage.loc:GetString()
+				end
+			end
+		end
 	end
+	spaceDamage.sScript = spaceDamage.sScript .. [[
+				Board:SetUniqueBuilding(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.specialBuilding .. [[")]]
+				
 	LOG("Health "..spaceData.currHealth)
 	spaceDamage.sScript = spaceDamage.sScript .. [[
 			Board:SetHealth(]] .. spaceDamage.loc:GetString() .. [[,]] .. spaceData.currHealth .. [[,]] .. spaceData.maxHealth .. [[)]]

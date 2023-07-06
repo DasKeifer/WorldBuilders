@@ -78,7 +78,7 @@ local function searchForMountains(doReverse)
 			explored[hash(current)] = true
 			
 			if Board:GetTerrain(current) == TERRAIN_MOUNTAIN then
-				local value = current.y
+				local value = current.y + 1
 				if doReverse then
 					value = size.y - current.y
 				end
