@@ -277,6 +277,7 @@ function WorldBuilders_Shift:GetTerrainAndEffectData(space)
 		origSpace = space,
 		terrain = Board:GetTerrain(space),
 		customTile = Board:GetCustomTile(space),
+		item = Board:GetItem(space),
 		populated = Board:IsPowered(space),
 		specialBuilding = Board:GetUniqueBuilding(space),
 		shielded = Board:IsShield(space) or (self:IsTerrainPawn(space) and Board:GetPawn(space):IsShield()),
@@ -383,6 +384,8 @@ function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceDamagePreform, space
 					Board:SetShield(]] .. spaceDamage.loc:GetString() .. [[, false)]]
 		end
 	end
+		
+	spaceDamage.sItem = spaceData.item
 	
 	if spaceData.cracked then 
 		spaceDamage.iCrack = EFFECT_CREATE

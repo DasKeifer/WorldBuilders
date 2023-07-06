@@ -4,16 +4,18 @@ Add projectile image(s) for consume
 weapon images
 
 Mold:
-handle immovable pawns)
+handle immovable pawns
 
 Swap:
 test frozen tiles
-handle mines and belts?
+Maybe just don't allow alot of things - swapping objectives, non pushables, custom tiles, etc. Probably easiest
+Don't allow items - treat like pods
+handle and belts, teleporters?
+consolidate terrain & damage
 
 Consume:
 Emerging vek space
 sand tiles not working
-consolidate terrain & damage
 
 Acheivements:
 Utilitarian - how to get queued attacks?
