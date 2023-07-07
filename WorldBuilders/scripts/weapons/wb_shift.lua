@@ -45,13 +45,8 @@ WorldBuilders_Shift_AB = WorldBuilders_Shift_B:new
 }
 
 
-function WorldBuilders_Shift:IsTerrainPawn(p)
-	return Board:IsPawnSpace(p) and Board:GetPawn(p):IsGuarding() and Board:GetPawn(p):GetMoveSpeed() <= 0
-end
-
 function WorldBuilders_Shift:CanSpaceBeOccupied(point)
-	-- treat immovable, no movement pawns as terrain
-	return Board:GetTerrain(point) ~= TERRAIN_BUILDING and Board:GetTerrain(point) ~= TERRAIN_MOUNTAIN and not self:IsTerrainPawn(point)
+	return Board:GetTerrain(point) ~= TERRAIN_BUILDING and Board:GetTerrain(point) ~= TERRAIN_MOUNTAIN
 end
 
 function WorldBuilders_Shift:IsOpenForPawn(space)
@@ -59,15 +54,8 @@ function WorldBuilders_Shift:IsOpenForPawn(space)
 end
 
 function WorldBuilders_Shift:IsInvalidTargetSpace(p)
-	-- if its a "terrain pawn"
-	if self:IsTerrainPawn(p) then
-		-- that has more than one space, it can't be swapped
-		local extraSpaces = _G[Board:GetPawn(p):GetType()].ExtraSpaces
-		if extraSpaces ~= nil and #extraSpaces > 0 then	
-			return true
-		end
-	end 
-	return false
+	-- don't allow swapping custom tiles or buildings
+	return Board:GetCustomTile(p) ~= "" or Board:GetUniqueBuilding(p) ~= ""
 end
 
 function WorldBuilders_Shift:GetTargetArea(center)
@@ -145,20 +133,14 @@ function WorldBuilders_Shift_B:GetSecondTargetArea(center, target1)
 			local goodTarget = true
 			-- if the space we are swapping in can't be occupied
 			if not self:CanSpaceBeOccupied(target2) then
-				-- if its a pod, don't allow it -- too much work to swap pods as its mostly hardcoded in the game and I don't want to deal with memedit
-				if Board:IsPod(target1) then
-					goodTarget = false
-				-- If its a pawn and doesn't have a valid push location don't allow it
-				elseif Board:IsPawnSpace(target1) and self:GetPushDirToOpenSpace(target1, target2) == DIR_NONE then
+				-- if its a pod or item, don't allow it -- too much work to swap pods as its mostly hardcoded in the game and I don't want to deal with memedit and no way to unset and item
+				if Board:IsPawnSpace(target1) and self:GetPushDirToOpenSpace(target1, target2) == DIR_NONE then
 					goodTarget = false
 				end
 			end
 			if not self:CanSpaceBeOccupied(target1) then
-				-- if its a pod, don't allow it -- too much work to swap pods as its mostly hardcoded in the game and I don't want to deal with memedit
-				if Board:IsPod(target2) then
-					goodTarget = false
-				-- If its a pawn and doesn't have a valid push location don't allow it
-				elseif Board:IsPawnSpace(target2) and self:GetPushDirToOpenSpace(target2, target1) == DIR_NONE then
+				-- if its a pod or item, don't allow it -- too much work to swap pods as its mostly hardcoded in the game and I don't want to deal with memedit and no way to unset and item
+				if Board:IsPawnSpace(target2) and self:GetPushDirToOpenSpace(target2, target1) == DIR_NONE then
 					goodTarget = false
 				end
 			end
@@ -179,12 +161,11 @@ function WorldBuilders_Shift_B:GetSecondTargetArea(center, target1)
 end
 
 function WorldBuilders_Shift:PushIfUnoccupiableSpace(p1, p2, spaceDamage, terrainDamage)
-	if Board:IsPawnSpace(p1) and not self:IsTerrainPawn(p1) and not self:CanSpaceBeOccupied(p2) then		
+	if Board:IsPawnSpace(p1) and not self:CanSpaceBeOccupied(p2) then		
 		local pushDir = self:GetPushDirToOpenSpace(p1, p2)
-		LOG("PUSH DIR :"..pushDir)
 		-- for some reason trying to apply a building too causes it
 		-- to not push so we add it twice
-		if Board:GetTerrain(p2) == TERRAIN_BUILDING or self:IsTerrainPawn(p2) then
+		if Board:GetTerrain(p2) == TERRAIN_BUILDING then
 			spaceDamage.iPush = pushDir
 		end
 		terrainDamage.iPush = pushDir
@@ -276,11 +257,9 @@ function WorldBuilders_Shift:GetTerrainAndEffectData(space)
 	return {
 		origSpace = space,
 		terrain = Board:GetTerrain(space),
-		customTile = Board:GetCustomTile(space),
 		item = Board:GetItem(space),
 		populated = Board:IsPowered(space),
-		specialBuilding = Board:GetUniqueBuilding(space),
-		shielded = Board:IsShield(space) or (self:IsTerrainPawn(space) and Board:GetPawn(space):IsShield()),
+		shielded = Board:IsShield(space),
 		cracked = Board:IsCracked(space),
 		currHealth = Board:GetHealth(space),
 		maxHealth = Board:GetMaxHealth(space),
@@ -302,6 +281,8 @@ end
 -- despite being ocnsidered a road tile. To get around we do a pre damage to change it
 -- to road and then do the normal changes
 function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceDamagePreform, spaceData)	
+
+
 	-- Buildings will literally crash if we set to iTerrain and a pawn is on
 	-- it so we have to do it via script instead.	
 	-- We also have oddities with setting terrain so we just do it via post script.
@@ -310,7 +291,11 @@ function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceDamagePreform, space
 	-- directly set a space to a forest fire
 	if spaceData.fireType == FIRE_TYPE_FOREST_FIRE then spaceData.terrain = TERRAIN_FOREST end
 	
-	if spaceData.terrain == TERRAIN_BUILDING then
+	-- Destroy the pod if the terrain is a no go. Simply switching to mountains does not
+	-- destroy the pod and when testing various terrains, water works well for this
+	if Board:IsPod(spaceDamage.loc) and not self:CanSpaceBeOccupied(p) then
+		spaceDamagePreform.iTerrain = TERRAIN_WATER
+	elseif spaceData.terrain == TERRAIN_BUILDING then
 		spaceDamagePreform.iTerrain = TERRAIN_ROAD
 	end
 	
@@ -322,37 +307,8 @@ function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceDamagePreform, space
 		spaceDamage.sScript = spaceDamage.sScript .. [[
 				Board:SetFire(]] .. spaceDamage.loc:GetString() .. [[,true)]]
 	end
-	
-	-- handle pawn terrain
-	if self:IsTerrainPawn(spaceData.origSpace) then
-		spaceDamage.sScript = spaceDamage.sScript .. [[
-				Board:GetPawn(]] .. spaceData.origSpace:GetString() .. [[):SetSpace(]] .. spaceDamage.loc:GetString() .. [[)]]
-	end
-	
-	spaceDamage.sScript = spaceDamage.sScript .. [[
-			Board:SetCustomTile(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.customTile .. [[")]]
-	LOG("CUSTOM TILE? "..spaceData.customTile)
-			
-	-- Some special handling needed for objectives
-	if spaceData.specialBuilding ~= "" then
-		local criticals = GetCurrentMission().Criticals
-		if criticals ~= nil then
-			for index = 1, #criticals do
-				if criticals[index] == spaceData.origSpace then
-					spaceDamage.sScript = spaceDamage.sScript .. [[
-								GetCurrentMission().Criticals[]] .. index .. [[] = ]] .. spaceDamage.loc:GetString()
-				end
-			end
-		end
-		if GetCurrentMission().AssetLoc == spaceData.origSpace then
-			spaceDamage.sScript = spaceDamage.sScript .. [[
-						GetCurrentMission().AssetLoc = ]] .. spaceDamage.loc:GetString()
-		end
-	end
-	
-	spaceDamage.sScript = spaceDamage.sScript .. [[
-				Board:SetUniqueBuilding(]] .. spaceDamage.loc:GetString() .. [[,"]] .. spaceData.specialBuilding .. [[")]]
-				
+
+
 	LOG("Health "..spaceData.currHealth)
 	spaceDamage.sScript = spaceDamage.sScript .. [[
 			Board:SetHealth(]] .. spaceDamage.loc:GetString() .. [[,]] .. spaceData.currHealth .. [[,]] .. spaceData.maxHealth .. [[)]]
@@ -367,31 +323,25 @@ function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceDamagePreform, space
 		
 	-- If it should be shielded but isn't already
 	if spaceData.shielded and not Board:IsShield(spaceDamage.loc) and not (Board:GetPawn(spaceDamage.loc) and Board:GetPawn(spaceDamage.loc):IsShield()) then
-		if self:IsTerrainPawn(spaceData.origSpace) then
-			spaceDamage.sScript = spaceDamage.sScript .. [[
-					Board:GetPawn(]] .. Board:GetPawn(spaceData.origSpace) .. [[):SetShield(true)]]
-		else
-			spaceDamage.sScript = spaceDamage.sScript .. [[
-					Board:SetShield(]] .. spaceDamage.loc:GetString() .. [[, true)]]
-		end
+		spaceDamage.sScript = spaceDamage.sScript .. [[
+				Board:SetShield(]] .. spaceDamage.loc:GetString() .. [[, true)]]
 	-- if it should not be shielded and it is
 	elseif not spaceData.shielded and (Board:IsShield(spaceDamage.loc) or (Board:GetPawn(spaceDamage.loc) and Board:GetPawn(spaceDamage.loc):IsShield())) then
-		if self:IsTerrainPawn(spaceData.origSpace) then
-			spaceDamage.sScript = spaceDamage.sScript .. [[
-					Board:GetPawn(]] .. Board:GetPawn(spaceData.origSpace) .. [[):SetShield(false)]]
-		else
-			spaceDamage.sScript = spaceDamage.sScript .. [[
-					Board:SetShield(]] .. spaceDamage.loc:GetString() .. [[, false)]]
-		end
+		spaceDamage.sScript = spaceDamage.sScript .. [[
+				Board:SetShield(]] .. spaceDamage.loc:GetString() .. [[, false)]]
 	end
-		
-	spaceDamage.sItem = spaceData.item
 	
 	if spaceData.cracked then 
 		spaceDamage.iCrack = EFFECT_CREATE
 	elseif Board:IsCracked(spaceDamage.loc) and spaceData.terrain ~= TERRAIN_BUILDING then
 		-- with testing, water seems to be the magic one that makes it work...
 		spaceDamagePreform.iTerrain = TERRAIN_WATER
+	end
+	
+	-- remove items if the terrain is a no go
+	if Board:IsItem(spaceDamage.loc) and not self:CanSpaceBeOccupied(p) then
+		spaceDamage.sScript = spaceDamage.sScript .. [[
+			Board:RemoveItem(]] .. spaceDamage.loc:GetString() .. [[)]]
 	end
 end
 

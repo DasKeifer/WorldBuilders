@@ -7,10 +7,9 @@ Mold:
 handle immovable pawns
 
 Swap:
-test frozen tiles
-Maybe just don't allow alot of things - swapping objectives, non pushables, custom tiles, etc. Probably easiest
-Don't allow items - treat like pods
-handle and belts, teleporters?
+-- need to handle dam with new approach
+redo a bunch of testing - like swapping void to mission critical objects (memedit isMissionCritical?)
+test frozen tiles, test mines and pods
 consolidate terrain & damage
 
 Consume:
