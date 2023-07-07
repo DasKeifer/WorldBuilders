@@ -5,6 +5,7 @@ WorldBuildersAchievements = {
 	zapPreDamage = 0,
 	zapBuildingHealth = 0,
 	spleefSkillBuilt = false,
+	queuedAttacks = {},
 }
 
 local squad = "worldbuilders"
@@ -47,6 +48,10 @@ local function isInMission()
 	return isGame() and mission ~= nil and mission ~= Mission_Test
 end
 
+local function hashPoint(point) 
+	return point.x + point.y * Board:GetSize().x
+end
+
 -- Great Wall
 local function searchForMountains(doReverse)
 	local possibleLoc = {}
@@ -69,13 +74,12 @@ local function searchForMountains(doReverse)
 		end
 	end	
 	
-	local hash = function(point) return point.x + point.y * size.x end
 	local explored = {}
 	while #possibleLoc ~= 0 do
 		local current = pop_back(possibleLoc)
 		
-		if not explored[hash(current)] then
-			explored[hash(current)] = true
+		if not explored[hashPoint(current)] then
+			explored[hashPoint(current)] = true
 			
 			if Board:GetTerrain(current) == TERRAIN_MOUNTAIN then
 				local value = current.y + 1
@@ -99,7 +103,7 @@ local function searchForMountains(doReverse)
 								current + DIR_VECTORS[side1], current + DIR_VECTORS[side2],
 								current + DIR_VECTORS[front] + DIR_VECTORS[side1], current + DIR_VECTORS[front] + DIR_VECTORS[side2], current + DIR_VECTORS[front]}
 				for _, neighbor in pairs(points) do
-					if Board:IsValid(neighbor) and not explored[hash(neighbor)] then
+					if Board:IsValid(neighbor) and not explored[hashPoint(neighbor)] then
 						possibleLoc[#possibleLoc + 1] = neighbor
 					end
 				end
@@ -137,11 +141,46 @@ achievements.greatwall.getTooltip = function(self)
 end
 
 -- utilitarian
-local function determineTotalGridThread()
+local function determineTotalGridThread(consumedSpace)
+	local threat = {}
+	
+	LOG("PARSING QUEUED ATTACKS")
+	for pawnId, queuedAttacks in pairs(WorldBuildersAchievements.queuedAttacks) do
+		LOG("PARSING QUEUED ATTACKS for pawn "..pawnId)
+		if Board:GetPawn(pawnId) ~= nil then
+			LOG("PAWN FOUND")
+			for _, qAttack in pairs(queuedAttacks) do
+				LOG("PARSING QUEUED ATTACK at "..qAttack.loc:GetString())
+				if Board:GetTerrain(qAttack.loc) == TERRAIN_BUILDING then
+					LOG("ATTACKING BUILDING")
+					if threat[qAttack.loc] == nil then
+						LOG("NEW ENTRY ".. qAttack.loc:GetString() .. " - " .. qAttack.damage)
+						threat[qAttack.loc] = qAttack.damage
+					else 
+						LOG("OLD ENTRY ".. qAttack.loc:GetString() .. " - " .. threat[qAttack.loc] .. " to " .. (threat[qAttack.loc] + qAttack.damage))
+						threat[qAttack.loc] = threat[qAttack.loc] + qAttack.damage
+					end
+				end
+			end
+		end
+	end
+	
+	LOG("PARSING GRID THREAT")
 	local gridThreat = 0
-	
-	-- TODO: Look through all queued effects
-	
+	for loc, damage in pairs(threat) do
+		if loc ~= consumedSpace then
+			LOG("PARSING GRID THREAT at " .. loc:GetString() .. " - " .. Board:GetHealth(loc) .. " - " .. damage)
+			if Board:GetHealth(loc) > damage then
+				LOG("DAMAGE")
+				gridThreat = gridThreat + damage
+			else
+				LOG("HEALTH")
+				gridThreat = gridThreat + Board:GetHealth(loc)
+			end
+		else
+			LOG("PARSING GRID THREAT at " .. loc:GetString() .. " FOUND CONSUMED - " .. Board:GetHealth(loc) .. " - " .. damage)
+		end
+	end
 	return gridThreat
 end
 
@@ -152,9 +191,17 @@ function WorldBuildersAchievements.onMissionEndHook(mission)
 	end
 end
 
+function tablelength(T)
+  local count = 0
+  for _ in pairs(T) do count = count + 1 end
+  return count
+end
+
 -- Utilitarian
 function WorldBuildersAchievements.onSkillBuildHook(mission, pawn, weaponId, p1, p2, skillEffect)
-	if isRightSquad() and not achievements.utilitarian:isComplete() then				
+	if isRightSquad() and not achievements.utilitarian:isComplete() then	
+
+
 		-- make sure we have the actual weaponid
 		if type(weaponId) == 'table' then
 			weaponId = weaponId.__Id
@@ -169,17 +216,31 @@ function WorldBuildersAchievements.onSkillBuildHook(mission, pawn, weaponId, p1,
 			WorldBuildersAchievements.zapBuildingHealth = 0
 		
 			LOG("BUILDING CONSUME")
+			local dir = GetDirection(p2 - p1) % 4
 			local consumeSpace = p1 + DIR_VECTORS[(dir + 2) % 4]
 			if Board:GetTerrain(consumeSpace) == TERRAIN_BUILDING then
 				WorldBuildersAchievements.zapBuildingHealth = Board:GetHealth(consumeSpace)
 			end
+		-- track all other attacks
+		else
+			LOG("QUEUING ATTACK for " .. weaponId)
+			local queued = {}
+			for _, spaceDamage in pairs(extract_table(skillEffect.q_effect)) do
+				LOG("QUEUING " .. spaceDamage.loc:GetString() .. " - " .. spaceDamage.iDamage)
+				local entry = {}
+				entry.loc = Point(spaceDamage.loc)
+				entry.damage = spaceDamage.iDamage
+				queued[#queued + 1] = entry
+			end	
+			WorldBuildersAchievements.queuedAttacks[pawn:GetId()] = queued
+			LOG("QUEUed ATTACK CNT " .. tablelength(WorldBuildersAchievements.queuedAttacks))
 		end
 	end
 end
 
 -- Spleef
 function WorldBuildersAchievements.onFinalEffectBuildHook(mission, pawn, weaponId, p1, p2, p3, skillEffect)
-	if isRightSquad() and not achievements.spleef:isComplete() then				
+	if isRightSquad() and not achievements.spleef:isComplete() then		
 		-- make sure we have the actual weaponid
 		if type(weaponId) == 'table' then
 			weaponId = weaponId.__Id
@@ -213,7 +274,10 @@ function WorldBuildersAchievements.onSkillStartHook(mission, pawn, weaponId, p1,
 		end 
 		
 		if string.sub(weaponId, 1 , string.len("WorldBuilders_Consume")) == "WorldBuilders_Consume" and WorldBuildersAchievements.zapBuildingHealth > 0 then
-			WorldBuildersAchievements.zapPreDamage = determineTotalGridThread()
+			local dir = GetDirection(p2 - p1) % 4
+			local consumeSpace = p1 + DIR_VECTORS[(dir + 2) % 4]
+			WorldBuildersAchievements.zapPreDamage = determineTotalGridThread(consumeSpace)
+			LOG("PRE GRID " .. WorldBuildersAchievements.zapPreDamage)
 		end
 	end
 end
@@ -227,7 +291,11 @@ function WorldBuildersAchievements.onSkillEndHook(mission, pawn, weaponId, p1, p
 		end 
 		
 		if string.sub(weaponId, 1 , string.len("WorldBuilders_Consume")) == "WorldBuilders_Consume" and WorldBuildersAchievements.zapBuildingHealth > 0 then
-			if WorldBuildersAchievements.zapPreDamage - determineTotalGridThread() > zapBuildingHealth then
+			local dir = GetDirection(p2 - p1) % 4
+			local consumeSpace = p1 + DIR_VECTORS[(dir + 2) % 4]
+			local postDamage = determineTotalGridThread(consumeSpace)
+			LOG("PRE GRID " .. WorldBuildersAchievements.zapPreDamage .. " POST GRID " .. postDamage)
+			if WorldBuildersAchievements.zapPreDamage - postDamage > WorldBuildersAchievements.zapBuildingHealth then
 				achievements.utilitarian:trigger()
 			end
 		end
@@ -253,6 +321,7 @@ function WorldBuildersAchievements:addHooks()
 	modApi.events.onMissionEnd:subscribe(self.onMissionEndHook)
 	
 	modapiext:addSkillBuildHook(self.onSkillBuildHook)
+	modapiext:addSkillStartHook(self.onSkillStartHook)
 	modapiext:addSkillEndHook(self.onSkillEndHook)
 	modapiext:addFinalEffectBuildHook(self.onFinalEffectBuildHook)
 	modapiext:addFinalEffectEndHook(self.onFinalEffectEndHook)

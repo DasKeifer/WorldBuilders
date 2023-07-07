@@ -1,6 +1,5 @@
 TODO:
 VFX in general
-Add projectile image(s) for consume
 weapon images
 
 Mold:
@@ -13,11 +12,12 @@ test frozen tiles, test mines and pods
 consolidate terrain & damage
 
 Consume:
-Emerging vek space
+Emerging vek space & custom overlay
+Add projectile image(s) for consume
 sand tiles not working
 
 Acheivements:
-Utilitarian - how to get queued attacks?
+Utilitarian - Test
 images
 
 Candidates:

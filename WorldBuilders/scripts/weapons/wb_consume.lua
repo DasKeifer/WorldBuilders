@@ -74,7 +74,7 @@ function WorldBuilders_Consume:GetTargetArea(point)
 	return ret
 end
 
-function WorldBuilders_Consume:Consume_Spawn(skillEffect, consumeSpace)
+function WorldBuilders_Consume:Consume_Spawn(skillEffect, consumeSpace, dir)
 	ret:AddScript([[Board:AddPawn(GetCurrentMission():GetSpawnPointData(]]..consumeSpace:GetString() .. [[).type, ]] .. consumeSpace:GetString() .. [[)]])
 	ret:AddScript([[Board:GetPawn(]]..consumeSpace:GetString() .. [[):SpawnAnimation()]])
 	ret:AddScript([[GetCurrentMission():RemoveSpawnPoint(]]..consumeSpace:GetString() .. [[)]])
@@ -173,15 +173,15 @@ function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, ta
 		-- water & ice are the default effect				
 		if consumedTerrain == TERRAIN_ACID then
 			applyAcid = true
-			projectileDamage.iAcid = true
-			side1Damage.iAcid = true
-			side2Damage.iAcid = true
+			projectileDamage.iAcid = EFFECT_CREATE
+			side1Damage.iAcid = EFFECT_CREATE
+			side2Damage.iAcid = EFFECT_CREATE
 		
 		elseif consumedTerrain == TERRAIN_LAVA then
 			applyFire = true
-			projectileDamage.iFire = true
-			side1Damage.iFire = true
-			side2Damage.iFire = true
+			projectileDamage.iFire = EFFECT_CREATE
+			side1Damage.iFire = EFFECT_CREATE
+			side2Damage.iFire = EFFECT_CREATE
 		end
 		
 		return {side1Damage, side2Damage}
@@ -194,7 +194,7 @@ function WorldBuilders_Consume:Consume_Terrain(skillEffect, projectileDamage, ta
 		elseif consumedTerrain == TERRAIN_SAND then
 			projectileDamage.iDamage = 1
 			local smokeDamage = SpaceDamage(consumeSpace, 0)
-			smokeDamage.iSmoke = true
+			smokeDamage.iSmoke = EFFECT_CREATE
 			skillEffect:AddDamage(smokeDamage)
 		
 		elseif consumedTerrain == TERRAIN_MOUNTAIN then
@@ -242,7 +242,7 @@ function WorldBuilders_Consume:GetSkillEffect(p1, p2)
 	if Board:GetPawn(consumeSpace) ~= nil then
 		ret:AddDamage(SpaceDamage(consumeSpace, 1, dir))
 	elseif Board:IsSpawning(consumeSpace) then
-		self:Consume_Spawn(ret, consumeSpace)
+		self:Consume_Spawn(ret, consumeSpace, dir)
 	elseif Board:GetTerrain(consumeSpace) == TERRAIN_BUILDING then
 		-- remove the push
 		projectileDamage.iPush = DIR_NONE

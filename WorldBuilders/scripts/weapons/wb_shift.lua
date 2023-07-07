@@ -293,7 +293,7 @@ function WorldBuilders_Shift:ApplyTerrain(spaceDamage, spaceDamagePreform, space
 	
 	-- Destroy the pod if the terrain is a no go. Simply switching to mountains does not
 	-- destroy the pod and when testing various terrains, water works well for this
-	if Board:IsPod(spaceDamage.loc) and not self:CanSpaceBeOccupied(p) then
+	if (Board:IsPod(spaceDamage.loc) or Board:IsItem(spaceDamage.loc)) and not self:CanSpaceBeOccupied(p) then
 		spaceDamagePreform.iTerrain = TERRAIN_WATER
 	elseif spaceData.terrain == TERRAIN_BUILDING then
 		spaceDamagePreform.iTerrain = TERRAIN_ROAD
