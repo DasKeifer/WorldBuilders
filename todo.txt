@@ -18,7 +18,6 @@ sand tiles not working
 
 Acheivements:
 Utilitarian - Test
-images
 
 Candidates:
 Visual "bug" showing push damage when swap pushed with adjacent mountain or building. Not sure there is a way around this
