@@ -1,6 +1,5 @@
 TODO:
 VFX in general
-weapon images
 
 Mold:
 handle immovable pawns
@@ -8,16 +7,15 @@ handle immovable pawns
 Swap:
 -- need to handle dam with new approach
 redo a bunch of testing - like swapping void to mission critical objects (memedit isMissionCritical?)
-test frozen tiles, test mines and pods
+test frozen tiles
 consolidate terrain & damage
 
 Consume:
-Emerging vek space & custom overlay
+Emerging vek space & custom overlay - test
 Add projectile image(s) for consume
-sand tiles not working
 
 Acheivements:
 Utilitarian - Test
 
 Candidates:
-Visual "bug" showing push damage when swap pushed with adjacent mountain or building. Not sure there is a way around this
+Visual "bug" showing push damage when swap pushed with adjacent mountain or building. Not sure there is a way around this (bHide)

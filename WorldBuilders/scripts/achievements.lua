@@ -52,6 +52,12 @@ local function hashPoint(point)
 	return point.x + point.y * Board:GetSize().x
 end
 
+local function unhashPoint(hash) 
+	local size = Board:GetSize()
+	return Point(hash % size.x, math.floor(hash / size.x))
+end
+
+
 -- Great Wall
 local function searchForMountains(doReverse)
 	local possibleLoc = {}
@@ -145,9 +151,9 @@ local function determineTotalGridThread(consumedSpace)
 	local threat = {}
 	
 	LOG("PARSING QUEUED ATTACKS")
-	for pawnId, queuedAttacks in pairs(WorldBuildersAchievements.queuedAttacks) do
-		LOG("PARSING QUEUED ATTACKS for pawn "..pawnId)
-		if Board:GetPawn(pawnId) ~= nil then
+	for pawnLoc, queuedAttacks in pairs(WorldBuildersAchievements.queuedAttacks) do
+		LOG("PARSING QUEUED ATTACKS for pawn "..unhashPoint(pawnLoc):GetString())
+		if Board:GetPawn(unhashPoint(pawnLoc)) ~= nil then
 			LOG("PAWN FOUND")
 			for _, qAttack in pairs(queuedAttacks) do
 				LOG("PARSING QUEUED ATTACK at "..qAttack.loc:GetString())
@@ -222,8 +228,8 @@ function WorldBuildersAchievements.onSkillBuildHook(mission, pawn, weaponId, p1,
 				WorldBuildersAchievements.zapBuildingHealth = Board:GetHealth(consumeSpace)
 			end
 		-- track all other attacks
-		else
-			LOG("QUEUING ATTACK for " .. weaponId)
+		elseif string.sub(weaponId, 1 , string.len("Move")) ~= "Move" then
+			LOG("QUEUING ATTACK for " .. weaponId .. " at " .. p1:GetString())
 			local queued = {}
 			for _, spaceDamage in pairs(extract_table(skillEffect.q_effect)) do
 				LOG("QUEUING " .. spaceDamage.loc:GetString() .. " - " .. spaceDamage.iDamage)
@@ -232,7 +238,7 @@ function WorldBuildersAchievements.onSkillBuildHook(mission, pawn, weaponId, p1,
 				entry.damage = spaceDamage.iDamage
 				queued[#queued + 1] = entry
 			end	
-			WorldBuildersAchievements.queuedAttacks[pawn:GetId()] = queued
+			WorldBuildersAchievements.queuedAttacks[hashPoint(p1)] = queued
 			LOG("QUEUed ATTACK CNT " .. tablelength(WorldBuildersAchievements.queuedAttacks))
 		end
 	end

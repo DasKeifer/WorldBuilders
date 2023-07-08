@@ -75,12 +75,12 @@ function WorldBuilders_Consume:GetTargetArea(point)
 end
 
 function WorldBuilders_Consume:Consume_Spawn(skillEffect, consumeSpace, dir)
-	ret:AddScript([[Board:AddPawn(GetCurrentMission():GetSpawnPointData(]]..consumeSpace:GetString() .. [[).type, ]] .. consumeSpace:GetString() .. [[)]])
-	ret:AddScript([[Board:GetPawn(]]..consumeSpace:GetString() .. [[):SpawnAnimation()]])
-	ret:AddScript([[GetCurrentMission():RemoveSpawnPoint(]]..consumeSpace:GetString() .. [[)]])
-	ret:AddDelay(1)
+	skillEffect:AddScript([[Board:AddPawn(GetCurrentMission():GetSpawnPointData(]] .. consumeSpace:GetString() .. [[).type, ]] .. consumeSpace:GetString() .. [[)]])
+	skillEffect:AddScript([[Board:GetPawn(]] .. consumeSpace:GetString() .. [[):SpawnAnimation()]])
+	skillEffect:AddScript([[GetCurrentMission():RemoveSpawnPoint(]] .. consumeSpace:GetString() .. [[)]])
+	skillEffect:AddDelay(1)
 	local spawnDamage = SpaceDamage(consumeSpace, 1, dir)
-	--custom image spawnDamage.sImageMark
+	spawnDamage.sImageMark = "combat/icons/icon_wb_emerge.png"
 	skillEffect:AddDamage(spawnDamage)
 end
 
