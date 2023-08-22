@@ -31,6 +31,8 @@ WorldBuilders_Consume = Skill:new
 	},
 }
 
+WorldBuilders_Consume.weaponPreview = mod_loader.mods[modApi.currentMod].libs.weaponPreview
+
 Weapon_Texts.WorldBuilders_Consume_Upgrade1 = "+1 Range"
 WorldBuilders_Consume_A = WorldBuilders_Consume:new
 {
@@ -74,13 +76,25 @@ function WorldBuilders_Consume:GetTargetArea(point)
 	return ret
 end
 
-function WorldBuilders_Consume:Consume_Spawn(skillEffect, consumeSpace, dir)
+
+function WorldBuilders_Consume:Consume_Spawn(skillEffect, p1, consumeSpace, dir)
+	self.weaponPreview:AddAnimation(consumeSpace, "icon_wb_emerge_a")
+	
 	skillEffect:AddScript([[Board:AddPawn(GetCurrentMission():GetSpawnPointData(]] .. consumeSpace:GetString() .. [[).type, ]] .. consumeSpace:GetString() .. [[)]])
 	skillEffect:AddScript([[Board:GetPawn(]] .. consumeSpace:GetString() .. [[):SpawnAnimation()]])
 	skillEffect:AddScript([[GetCurrentMission():RemoveSpawnPoint(]] .. consumeSpace:GetString() .. [[)]])
 	skillEffect:AddDelay(1)
+	
 	local spawnDamage = SpaceDamage(consumeSpace, 1, dir)
-	spawnDamage.sImageMark = "combat/icons/icon_wb_emerge.png"
+	if dir == DIR_LEFT then
+		spawnDamage.sImageMark = "combat/arrow_hit_left.png"
+	elseif dir == DIR_UP then
+		spawnDamage.sImageMark = "combat/arrow_hit_up.png"
+	elseif dir == DIR_RIGHT then
+		spawnDamage.sImageMark = "combat/arrow_hit_right.png"
+	else -- down
+		spawnDamage.sImageMark = "combat/arrow_hit_down.png"
+	end
 	skillEffect:AddDamage(spawnDamage)
 end
 
@@ -242,7 +256,7 @@ function WorldBuilders_Consume:GetSkillEffect(p1, p2)
 	if Board:GetPawn(consumeSpace) ~= nil then
 		ret:AddDamage(SpaceDamage(consumeSpace, 1, dir))
 	elseif Board:IsSpawning(consumeSpace) then
-		self:Consume_Spawn(ret, consumeSpace, dir)
+		self:Consume_Spawn(ret, p1, consumeSpace, dir)
 	elseif Board:GetTerrain(consumeSpace) == TERRAIN_BUILDING then
 		-- remove the push
 		projectileDamage.iPush = DIR_NONE

@@ -7,7 +7,8 @@ local mod = {
 	gameVersion = "1.2.88",
 	dependencies = {
         modApiExt = "1.21",
-    }
+    },
+	libs = {}
 }
 
 function mod:init()	
@@ -19,7 +20,7 @@ function mod:init()
 	require(self.scriptPath .. "achievements")
 
 	-- Libs
-	-- none
+	mod.libs.weaponPreview = require(self.scriptPath.."libs/".."weaponPreview")
 		
 	-- Pawns
 	require(self.scriptPath .. "mechs/wb_maker")

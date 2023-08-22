@@ -25,6 +25,8 @@ WorldBuilders_Shift = Skill:new{
 	},
 }
 
+WorldBuilders_Shift.weaponPreview = mod_loader.mods[modApi.currentMod].libs.weaponPreview
+
 Weapon_Texts.WorldBuilders_Shift_Upgrade1 = "+2 Range"
 WorldBuilders_Shift_A = WorldBuilders_Shift:new
 {
@@ -160,49 +162,59 @@ function WorldBuilders_Shift_B:GetSecondTargetArea(center, target1)
 	return ret
 end
 
-function WorldBuilders_Shift:PushIfUnoccupiableSpace(p1, p2, spaceDamage, terrainDamage)
+function WorldBuilders_Shift:PushIfUnoccupiableSpace(p1, p2, terrainDamage, pushDamage)
 	if Board:IsPawnSpace(p1) and not self:CanSpaceBeOccupied(p2) then		
 		local pushDir = self:GetPushDirToOpenSpace(p1, p2)
 		-- for some reason trying to apply a building too causes it
-		-- to not push so we add it twice
-		if Board:GetTerrain(p2) == TERRAIN_BUILDING then
-			spaceDamage.iPush = pushDir
+		-- to not push so we add it twice. Also hide the push so it
+		-- won't show us colliding in the preview
+		pushDamage.iPush = pushDir
+		pushDamage.bHide = true
+		
+		if pushDir == DIR_LEFT then
+			terrainDamage.sImageMark = "combat/arrow_left.png"
+		elseif pushDir == DIR_UP then
+			terrainDamage.sImageMark = "combat/arrow_up.png"
+		elseif pushDir == DIR_RIGHT then
+			terrainDamage.sImageMark = "combat/arrow_right.png"
+		else -- down
+			terrainDamage.sImageMark = "combat/arrow_down.png"
 		end
-		terrainDamage.iPush = pushDir
 	end
 end
 
 function WorldBuilders_Shift:GetSkillEffect(p1, p2)
 	local ret = SkillEffect()
 	
+	self.weaponPreview:AddImage(p1, "combat/tile_icon/tile_wb_shift.png", GL_Color(255,226,88,0.75))
+	self.weaponPreview:AddImage(p2, "combat/tile_icon/tile_wb_shift.png", GL_Color(255,226,88,0.75))
+	
 	local p1Data = self:GetTerrainAndEffectData(p1)
 	local p2Data = self:GetTerrainAndEffectData(p2)
 
-	local p1Damage = SpaceDamage(p1, 0)
 	local p1TerrainPre = SpaceDamage(p1, 0)
-	local p1Terrain = SpaceDamage(p1, 0)
-	
+	local p1Damage = SpaceDamage(p1, 0)
+	local p1Push = SpaceDamage(p1, 0)
 	self:ApplyEffect(p1Damage, p2Data)
-	self:ApplyTerrain(p1Terrain, p1TerrainPre, p2Data)
-	self:PushIfUnoccupiableSpace(p1, p2, p1Damage, p1Terrain)
+	self:ApplyTerrain(p1Damage, p1TerrainPre, p2Data)
+	self:PushIfUnoccupiableSpace(p1, p2, p1Damage, p1Push)
 	
-	local p2Damage = SpaceDamage(p2, 0)
-	local p2Terrain = SpaceDamage(p2, 0)
 	local p2TerrainPre = SpaceDamage(p2, 0)
+	local p2Damage = SpaceDamage(p2, 0)
 	self:ApplyEffect(p2Damage, p1Data)
-	self:ApplyTerrain(p2Terrain, p2TerrainPre, p1Data)
+	self:ApplyTerrain(p2Damage, p2TerrainPre, p1Data)
 	-- by definition p1 is occupiable
 	
 	-- todo add space symbol and/or animation
-	ret:AddDamage(p1Damage)
+	ret:AddDamage(p1Push)
 	ret:AddBounce(p1, -5)
-	ret:AddDamage(p2Damage)
 	ret:AddBounce(p2, -5)
 	
 	ret:AddDamage(p1TerrainPre)
 	ret:AddDamage(p2TerrainPre)
-	ret:AddDamage(p1Terrain)
-	ret:AddDamage(p2Terrain)
+	ret:AddDamage(p1Push)
+	ret:AddDamage(p1Damage)
+	ret:AddDamage(p2Damage)
 	
 	return ret
 end
@@ -210,45 +222,46 @@ end
 -- B & AB do different things - overwrite the skill effect
 function WorldBuilders_Shift_B:GetSkillEffect(p1, p2)
 	local ret = SkillEffect()
-	ret:AddTeleport(p2, p2, FULL_DELAY)
+	self.weaponPreview:AddImage(p2, "combat/tile_icon/tile_wb_shift.png", GL_Color(255,226,88,0.75))
+	ret:AddDamage(SpaceDamage(p2, 0))
 	return ret
 end
 
 function WorldBuilders_Shift_B:GetFinalEffect(p1,p2,p3)
 	local ret = SkillEffect()
-	local dir = GetDirection(p3 - p2)
+	
+	self.weaponPreview:AddImage(p2, "combat/tile_icon/tile_wb_shift.png", GL_Color(255,226,88,0.75))
+	self.weaponPreview:AddImage(p3, "combat/tile_icon/tile_wb_shift.png", GL_Color(255,226,88,0.75))
 	
 	local p2Data = self:GetTerrainAndEffectData(p2)
 	local p3Data = self:GetTerrainAndEffectData(p3)
 
-	local success = true
-	local p2Damage = SpaceDamage(p2, 0)
-	local p2Terrain = SpaceDamage(p2, 0)
 	local p2TerrainPre = SpaceDamage(p2, 0)
-	local p2BuildingPush = SpaceDamage(p2, 0)
-	local p3Damage = SpaceDamage(p3, 0)
-	local p3Terrain = SpaceDamage(p3, 0)
-	local p3TerrainPre = SpaceDamage(p3, 0)
-	local p3BuildingPush = SpaceDamage(p3, 0)
-	
+	local p2Damage = SpaceDamage(p2, 0)
+	local p2Push = SpaceDamage(p2, 0)
 	self:ApplyEffect(p2Damage, p3Data)
-	self:ApplyTerrain(p2Terrain, p2TerrainPre, p3Data)
-	self:PushIfUnoccupiableSpace(p2, p3, p2Damage, p2Terrain)
+	self:ApplyTerrain(p2Damage, p2TerrainPre, p3Data)
+	self:PushIfUnoccupiableSpace(p2, p3, p2Damage, p2Push)
 	
+	local p3TerrainPre = SpaceDamage(p3, 0)
+	local p3Damage = SpaceDamage(p3, 0)
+	local p3Push = SpaceDamage(p3, 0)
 	self:ApplyEffect(p3Damage, p2Data)
-	self:ApplyTerrain(p3Terrain, p3TerrainPre, p2Data)
-	self:PushIfUnoccupiableSpace(p3, p2, p3Damage, p3Terrain)
+	self:ApplyTerrain(p3Damage, p3TerrainPre, p2Data)
+	self:PushIfUnoccupiableSpace(p3, p2, p3Damage, p3Push)
 	
 	-- todo add space symbol and/or animation
-	ret:AddDamage(p2Damage)
+	ret:AddDamage(p2Push)
 	ret:AddBounce(p2, -5)
-	ret:AddDamage(p3Damage)
+	ret:AddDamage(p3Push)
 	ret:AddBounce(p3, -5)
 	
 	ret:AddDamage(p2TerrainPre)
 	ret:AddDamage(p3TerrainPre)
-	ret:AddDamage(p2Terrain)
-	ret:AddDamage(p3Terrain)
+	ret:AddDamage(p2Push)
+	ret:AddDamage(p3Push)
+	ret:AddDamage(p2Damage)
+	ret:AddDamage(p3Damage)
 	
 	return ret
 end
